@@ -1,5 +1,5 @@
 import path from "node:path";
-import { liveClaims, removeClaims, touchClaim } from "./claims.js";
+import { dropClaim, liveClaims, removeClaims, touchClaim } from "./claims.js";
 import { toIso } from "./clock.js";
 import { findClaimer, shouldDeny } from "./collision.js";
 import { addDeny } from "./denies.js";
@@ -128,6 +128,7 @@ export class TalksBus {
         body,
         paths: [abs],
       });
+      dropClaim(this.deps, input.sessionId, abs);
       return { decision: "deny", reason: body };
     }
     if (hit.peer.state === "idle") {
