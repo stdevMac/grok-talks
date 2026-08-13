@@ -28,7 +28,8 @@ Office is the radio. Squad is the factory on top of that radio. You can use offi
 You need **Node 20+** and the **Grok CLI** (`grok` on your `PATH`).
 
 ```bash
-cd grok-talks     # this repo
+git clone https://github.com/stdevMac/grok-talks.git
+cd grok-talks
 npm install
 npm test          # optional, 80 tests
 npm run build
