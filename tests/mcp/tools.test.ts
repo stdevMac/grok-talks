@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { approveTask } from "../../src/bus/squad.js";
 import { TalksBus } from "../../src/bus/talks.js";
 import { callTalksTool } from "../../src/mcp/tools.js";
 import { deps } from "../helpers.js";
@@ -82,7 +83,7 @@ describe("mcp tools", () => {
       cwd: "/repo",
     });
     expect(denied.isError).toBe(true);
-    callTalksTool(bus, "lead-1", "talks_approve", { task: "ui-1" });
+    approveTask(d.dataDir, "lead-1", "ui-1");
     const spawned = callTalksTool(bus, "lead-1", "talks_spawn", {
       role: "frontend",
       task: "ui-1",
@@ -91,6 +92,12 @@ describe("mcp tools", () => {
     });
     expect(spawned.isError).toBeFalsy();
     const id = spawned.text.split("\t")[1];
+    expect(spawned.text).toMatch(/--session-id /);
+    const board = callTalksTool(bus, "lead-1", "talks_board", {});
+    expect(board.text).toMatch(/\[spawned task=ui-1\]/);
+    const approve = callTalksTool(bus, "lead-1", "talks_approve", { task: "ui-1" });
+    expect(approve.isError).toBe(true);
+    expect(approve.text).toMatch(/only the human/);
     expect(callTalksTool(bus, "lead-1", "talks_retire", { session_id: id }).text).toBe("retired");
   });
 });

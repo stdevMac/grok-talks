@@ -64,9 +64,9 @@ server.tool("talks_role", {}, async () => {
 
 server.tool(
   "talks_handoff",
-  { to: z.string(), task: z.string(), body: z.string() },
-  async ({ to, task, body }) => {
-    const r = callTalksTool(bus, sessionId(), "talks_handoff", { to, task, body });
+  { to: z.string(), task: z.string(), body: z.string(), commit: z.string().optional() },
+  async ({ to, task, body, commit }) => {
+    const r = callTalksTool(bus, sessionId(), "talks_handoff", { to, task, body, commit });
     return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
   },
 );
@@ -98,11 +98,6 @@ server.tool(
     return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
   },
 );
-
-server.tool("talks_approve", { task: z.string() }, async ({ task }) => {
-  const r = callTalksTool(bus, sessionId(), "talks_approve", { task });
-  return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
-});
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

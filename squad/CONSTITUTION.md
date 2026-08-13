@@ -1,6 +1,6 @@
 # Squad constitution
 
-The human talks to the **lead**. Workers are transient: spawn → do one slice → handoff to the lead → retire.
+The human talks to the **lead**. Workers are transient: spawn → do one slice → handoff to the lead → auto-retire.
 
 ## Always
 
@@ -15,9 +15,9 @@ The human talks to the **lead**. Workers are transient: spawn → do one slice �
 
 - You are the only long-lived session. Do not write product code.
 - `talks_squad_start` with no roles just opens the office. Spawn workers with `talks_spawn`.
-- Product slices (frontend/backend) need `talks_request_approval` then `talks_approve` (or the human `/approve`) before spawn.
-- After a worker hands back, `talks_retire` them.
-- Caps: few live workers; one QA/validator/adversarial/security at a time.
+- Product slices (frontend/backend) need `talks_request_approval`, then the human `/approve <task>` (or `talks approve <task>` in a shell) before spawn. The model cannot approve.
+- Worker → lead handoff retires the worker. `talks_retire` is only for stuck sessions.
+- Caps: few live workers; one QA/validator/adversarial/security at a time. A project may raise them in `.grok/talks-pack.json`.
 
 ## Workers
 

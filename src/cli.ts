@@ -1,8 +1,9 @@
 import { systemClock, systemPid } from "./bus/clock.js";
 import { defaultDataDir } from "./bus/paths.js";
-import { isSquadRole } from "./bus/squad.js";
 import {
   approveTask,
+  findWorker,
+  isSquadRole,
   parseRoles,
   requestApproval,
   retireWorker,
@@ -23,7 +24,14 @@ export function runCli(
     const rows = bus.board(sessionId, scope);
     return {
       status: 0,
-      text: rows.map((r) => `${r.name}\t${r.state}\t${r.project}\t${r.working_on}`).join("\n") + "\n",
+      text:
+        rows
+          .map((r) => {
+            const w = findWorker(bus.deps.dataDir, r.session_id);
+            const extra = w ? `\t${w.state}\t${w.task}` : "";
+            return `${r.name}\t${r.state}\t${r.project}\t${r.working_on}${extra}`;
+          })
+          .join("\n") + "\n",
     };
   }
   if (cmd === "send") {
@@ -63,9 +71,7 @@ export function runCli(
       return {
         status: 0,
         text:
-          squad.members
-            .map((m) => `${m.role}\t${m.sessionId}\tgrok --agent grok-talks:${m.role}`)
-            .join("\n") + "\n",
+          squad.members.map((m) => `${m.role}\t${m.sessionId}\t${m.launch}`).join("\n") + "\n",
       };
     } catch (err) {
       return { status: 1, text: (err instanceof Error ? err.message : "squad failed") + "\n" };
@@ -76,24 +82,38 @@ export function runCli(
     return r.ok ? { status: 0, text: r.text + "\n" } : { status: 1, text: r.error + "\n" };
   }
   if (cmd === "handoff") {
-    const [to, task, ...body] = rest;
-    const r = bus.handoff(sessionId, to ?? "", task ?? "", body.join(" "));
+    const copy = [...rest];
+    const flag = copy.indexOf("--commit");
+    let commit: string | undefined;
+    if (flag >= 0) {
+      commit = copy[flag + 1];
+      copy.splice(flag, 2);
+    }
+    const [to, task, ...body] = copy;
+    const r = bus.handoff(sessionId, to ?? "", task ?? "", body.join(" "), commit);
     return r.ok ? { status: 0, text: `handoff ${r.mail.id}\n` } : { status: 1, text: r.error + "\n" };
   }
   if (cmd === "spawn") {
-    const role = rest[0] ?? "";
+    const copy = [...rest];
+    let cwd = process.cwd();
+    const flag = copy.indexOf("--cwd");
+    if (flag >= 0) {
+      cwd = copy[flag + 1] || cwd;
+      copy.splice(flag, 2);
+    }
+    const role = copy[0] ?? "";
     if (!isSquadRole(role)) return { status: 1, text: `unknown role ${role}\n` };
     const r = spawnWorker(bus, {
       leadSessionId: sessionId,
-      cwd: rest[3] || process.cwd(),
+      cwd,
       role,
-      task: rest[1] ?? role,
-      body: rest.slice(2).join(" "),
+      task: copy[1] ?? role,
+      body: copy.slice(2).join(" "),
     });
     if (!r.ok) return { status: 1, text: r.error + "\n" };
     return {
       status: 0,
-      text: `${r.member.role}\t${r.member.sessionId}\tgrok --agent grok-talks:${r.member.role}\n`,
+      text: `${r.member.role}\t${r.member.sessionId}\t${r.member.launch}\n`,
     };
   }
   if (cmd === "retire") {
@@ -101,11 +121,15 @@ export function runCli(
     return r.ok ? { status: 0, text: "retired\n" } : { status: 1, text: r.error + "\n" };
   }
   if (cmd === "request-approval") {
-    requestApproval(bus.deps.dataDir, sessionId, rest[0] ?? "", rest.slice(1).join(" "));
+    const task = (rest[0] ?? "").trim();
+    if (!task) return { status: 1, text: "empty task\n" };
+    requestApproval(bus.deps.dataDir, sessionId, task, rest.slice(1).join(" "));
     return { status: 0, text: "requested\n" };
   }
   if (cmd === "approve") {
-    approveTask(bus.deps.dataDir, sessionId, rest[0] ?? "");
+    const task = (rest[0] ?? "").trim();
+    if (!task) return { status: 1, text: "empty task\n" };
+    approveTask(bus.deps.dataDir, sessionId, task);
     return { status: 0, text: "approved\n" };
   }
   return {

@@ -45,6 +45,7 @@ export interface Mail {
   project: string;
   body: string;
   paths: string[];
+  commit?: string;
 }
 
 export interface MuteFile {

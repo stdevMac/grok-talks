@@ -9,8 +9,8 @@ description: >
 You are the lead. The human does not talk to workers.
 
 1. `talks_squad_start` with no roles unless they named a standing list.
-2. For a product slice (frontend/backend): `talks_request_approval`, wait for `talks_approve` (or tell the human to approve), then `talks_spawn`.
-3. For planner/explorer/qa/validator/adversarial/security: `talks_spawn` directly.
-4. Give them `grok --agent grok-talks:<role>`.
-5. When inbox has a worker handoff, `talks_retire` that session. Do not leave temps on the board.
+2. For a product slice (frontend/backend): `talks_request_approval`, then tell the human to type `/approve <task>` (or run `talks approve <task>` in a shell). Do **not** call `talks_approve` — it is human-only and will error.
+3. After the Stop hook says the task is approved (or they typed `/approve`), `talks_spawn`.
+4. Give them the spawn `launch` line verbatim: `grok --session-id <uuid> --agent grok-talks:<role>`.
+5. Worker → lead `talks_handoff` retires that worker. Use `talks_retire` only if they get stuck on the board.
 6. Do not write product code. Collisions: `talks_say`, then retry.

@@ -10,7 +10,7 @@ import { displayName } from "./names.js";
 import { normalizePath, projectRoot } from "./normalize.js";
 import { allowChat } from "./rateLimit.js";
 import { handoffDenied } from "./contracts.js";
-import { markHandoffSent } from "./squad.js";
+import { isKnownLead, markHandoffSent, retireIfWorkerToLead } from "./squad.js";
 import { cardFromSession, formatRoleBriefing } from "./roleCards.js";
 import { listRoster, readRoster, removeRoster, writeRoster } from "./roster.js";
 import { markTalked } from "./talked.js";
@@ -35,15 +35,16 @@ export class TalksBus {
     pid: number;
     title?: string;
   }): RosterEntry {
+    const prev = readRoster(this.deps, input.sessionId);
     const project = projectRoot(input.cwd);
     const entry: RosterEntry = {
       session_id: input.sessionId,
-      name: displayName(input.title, project, input.sessionId),
+      name: displayName(input.title ?? prev?.name, project, input.sessionId),
       cwd: path.resolve(input.cwd),
       project,
       pid: input.pid,
-      working_on: "",
-      state: "idle",
+      working_on: prev?.working_on ?? "",
+      state: prev?.state ?? "idle",
       heartbeat_at: toIso(this.deps.clock.now()),
       plugin_version: PLUGIN_VERSION,
     };
@@ -152,9 +153,9 @@ export class TalksBus {
     target: string,
   ): { ok: true; peer: RosterEntry } | { ok: false; error: string } {
     if (target === "*") return { ok: false, error: "broadcast is not supported" };
-    const peers = listRoster(this.deps);
-    const byId = peers.find((p) => p.session_id === target);
+    const byId = readRoster(this.deps, target);
     if (byId) return { ok: true, peer: byId };
+    const peers = listRoster(this.deps);
     const byName = peers.filter((p) => p.name === target || p.name.endsWith("·" + target));
     if (byName.length === 1) return { ok: true, peer: byName[0] };
     if (byName.length > 1) {
@@ -198,32 +199,41 @@ export class TalksBus {
     to: string,
     task: string,
     body: string,
+    commit?: string,
   ): { ok: true; mail: Mail } | { ok: false; error: string } {
     const taskName = task.trim();
     const trimmed = body.trim();
     if (!taskName) return { ok: false, error: "empty task" };
     if (!trimmed) return { ok: false, error: "empty body" };
+    const sha = commit?.trim();
+    if (sha && !/^[0-9a-f]{7,40}$/i.test(sha)) {
+      return { ok: false, error: "commit must be a 7-40 char hex sha" };
+    }
     const resolved = this.resolvePeer(from, to);
     if (!resolved.ok) return resolved;
     const us = readRoster(this.deps, from);
-    const denied = handoffDenied(us, resolved.peer);
+    const denied = handoffDenied(us, resolved.peer, {
+      toIsLead: isKnownLead(this.deps.dataDir, resolved.peer.session_id),
+    });
     if (denied) return { ok: false, error: denied };
     const mail = appendMail(this.deps, resolved.peer.session_id, {
       from,
       from_name: us?.name ?? from,
       kind: "handoff",
       project: us?.project ?? "",
-      body: `TASK ${taskName}\n${trimmed}`,
+      body: sha ? `TASK ${taskName}\nCOMMIT ${sha}\n${trimmed}` : `TASK ${taskName}\n${trimmed}`,
       paths: [],
+      commit: sha,
     });
     markTalked(this.deps, from, resolved.peer.session_id);
     markHandoffSent(this.deps.dataDir, from);
+    retireIfWorkerToLead(this, from, resolved.peer);
     return { ok: true, mail };
   }
 
   roleCard(sessionId: SessionId): { ok: true; role: string; text: string } | { ok: false; error: string } {
     const us = readRoster(this.deps, sessionId);
-    const role = cardFromSession(us?.name ?? "", sessionId);
+    const role = cardFromSession(us?.name ?? "", sessionId) ?? (isKnownLead(this.deps.dataDir, sessionId) ? "lead" : undefined);
     if (!role) return { ok: false, error: "no squad role on this session" };
     try {
       return { ok: true, role, text: formatRoleBriefing(role) };

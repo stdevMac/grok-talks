@@ -1,15 +1,19 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   SQUAD_ROLES,
   activeWorkers,
   approveTask,
+  gcDeadWorkers,
   loadSquadState,
   parseRoles,
-  retireWorker,
   spawnWorker,
   startSquad,
 } from "../../src/bus/squad.js";
 import { TalksBus } from "../../src/bus/talks.js";
+import { HEARTBEAT_MS } from "../../src/bus/types.js";
+import { writeRoster } from "../../src/bus/roster.js";
 import { deps } from "../helpers.js";
 
 describe("squad", () => {
@@ -124,11 +128,13 @@ describe("squad", () => {
     expect(peer.ok).toBe(false);
     if (!peer.ok) expect(peer.error).toMatch(/only handoff/);
 
-    const back = bus.handoff(fe.member.sessionId, "lead", "glass", "sign.html done");
+    expect(fe.member.launch).toMatch(/--session-id [0-9a-f-]{36} --agent grok-talks:frontend/);
+    const back = bus.handoff(fe.member.sessionId, "lead", "glass", "sign.html done", "abc1234");
     expect(back.ok).toBe(true);
-    expect(loadSquadState(d.dataDir, "lead-1")?.workers[0].state).toBe("handoff_sent");
-
-    expect(retireWorker(bus, "lead-1", fe.member.sessionId).ok).toBe(true);
+    if (back.ok) expect(back.mail.commit).toBe("abc1234");
+    expect(loadSquadState(d.dataDir, "lead-1")?.workers.find((w) => w.sessionId === fe.member.sessionId)?.state).toBe(
+      "retired",
+    );
     expect(activeWorkers(loadSquadState(d.dataDir, "lead-1")!).length).toBe(0);
     expect(bus.board("lead-1", "project").some((r) => r.session_id === fe.member.sessionId)).toBe(
       false,
@@ -155,6 +161,105 @@ describe("squad", () => {
       body: "again",
     });
     expect(second.ok).toBe(false);
+  });
+
+  it("refuses a non-sha commit, allows worker→lead by session id, and blocks worker spawn", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "host" });
+    startSquad(bus, { leadSessionId: "lead-1", cwd: "/repo" });
+    expect(bus.board("lead-1", "project")[0].name).toBe("lead");
+
+    const planner = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      role: "planner",
+      task: "plan",
+      body: "slice it",
+    });
+    expect(planner.ok).toBe(true);
+    if (!planner.ok) return;
+
+    const bad = bus.handoff(planner.member.sessionId, "lead-1", "plan", "done", "not a sha");
+    expect(bad.ok).toBe(false);
+
+    const nested = spawnWorker(bus, {
+      leadSessionId: planner.member.sessionId,
+      cwd: "/repo",
+      role: "qa",
+      task: "prove",
+      body: "no",
+    });
+    expect(nested.ok).toBe(false);
+    if (!nested.ok) expect(nested.error).toMatch(/only the lead/);
+
+    const lead = bus.board("lead-1", "all").find((r) => r.session_id === "lead-1")!;
+    writeRoster(d, { ...lead, name: "host" });
+    const back = bus.handoff(planner.member.sessionId, "lead-1", "plan", "done");
+    expect(back.ok).toBe(true);
+    expect(activeWorkers(loadSquadState(d.dataDir, "lead-1")!).length).toBe(0);
+  });
+
+  it("garbage-collects workers whose pid or heartbeat is dead", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
+    startSquad(bus, { leadSessionId: "lead-1", cwd: "/repo" });
+
+    const dead = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      role: "planner",
+      task: "plan",
+      body: "slice",
+      pid: 999,
+    });
+    expect(dead.ok).toBe(true);
+    expect(gcDeadWorkers(bus, "lead-1")).toBe(1);
+    expect(activeWorkers(loadSquadState(d.dataDir, "lead-1")!).length).toBe(0);
+
+    const stale = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      role: "explorer",
+      task: "look",
+      body: "scan",
+      pid: 100,
+    });
+    expect(stale.ok).toBe(true);
+    d.clock.advance(HEARTBEAT_MS + 1);
+    expect(gcDeadWorkers(bus)).toBe(1);
+    expect(activeWorkers(loadSquadState(d.dataDir, "lead-1")!).length).toBe(0);
+  });
+
+  it("honors .grok/talks-pack.json caps in the project", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    const cwd = path.join(d.dataDir, "repo");
+    fs.mkdirSync(path.join(cwd, ".grok"), { recursive: true });
+    fs.writeFileSync(
+      path.join(cwd, ".grok", "talks-pack.json"),
+      JSON.stringify({ maxTransient: 1, perRole: { planner: 3 } }),
+    );
+    bus.sessionStart({ sessionId: "lead-1", cwd, pid: 100, title: "lead" });
+    startSquad(bus, { leadSessionId: "lead-1", cwd });
+    const first = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd,
+      role: "planner",
+      task: "plan",
+      body: "one",
+    });
+    expect(first.ok).toBe(true);
+    const second = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd,
+      role: "planner",
+      task: "plan-2",
+      body: "two",
+    });
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.error).toMatch(/squad full/);
   });
 });
 

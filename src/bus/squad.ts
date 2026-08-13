@@ -1,9 +1,12 @@
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { cardFromSession } from "./roleCards.js";
 import { readJson, writeJsonAtomic } from "./fs.js";
 import { loadCaps, loadContract } from "./contracts.js";
+import { isLive, readRoster, writeRoster } from "./roster.js";
 import type { TalksBus } from "./talks.js";
-import type { SessionId } from "./types.js";
+import type { RosterEntry, SessionId } from "./types.js";
 
 export const SQUAD_ROLES = [
   "planner",
@@ -35,6 +38,11 @@ export interface SquadMember {
   role: SquadRole;
   sessionId: SessionId;
   name: string;
+  launch: string;
+}
+
+export function launchLine(role: string, sessionId: string): string {
+  return `grok --session-id ${sessionId} --agent grok-talks:${role}`;
 }
 
 export interface WorkerRecord {
@@ -113,6 +121,8 @@ export function startSquad(
     pid?: number;
   },
 ): Squad {
+  const lead = readRoster(bus.deps, input.leadSessionId);
+  if (lead) writeRoster(bus.deps, { ...lead, name: "lead" });
   ensureSquadState(bus.deps.dataDir, input.leadSessionId, input.cwd);
   const roles = input.roles ?? [];
   const members: SquadMember[] = [];
@@ -122,7 +132,7 @@ export function startSquad(
       cwd: input.cwd,
       role,
       task: "briefing",
-      body: `You are ${role}. Call talks_role, then talks_inbox. Launch: grok --agent grok-talks:${role}`,
+      body: `You are ${role}. Call talks_role, then talks_inbox.`,
       pid: input.pid,
       skipApproval: true,
       skipCap: true,
@@ -130,6 +140,7 @@ export function startSquad(
     if (!spawned.ok) throw new Error(spawned.error);
     members.push(spawned.member);
   }
+  gcDeadWorkers(bus, input.leadSessionId);
   return { leadSessionId: input.leadSessionId, members };
 }
 
@@ -146,20 +157,26 @@ export function spawnWorker(
     skipCap?: boolean;
   },
 ): { ok: true; member: SquadMember } | { ok: false; error: string } {
+  if (findWorker(bus.deps.dataDir, input.leadSessionId)) {
+    return { ok: false, error: "only the lead can spawn" };
+  }
   const contract = loadContract(input.role);
   const state = ensureSquadState(bus.deps.dataDir, input.leadSessionId, input.cwd);
-  if (!input.skipApproval && contract.requiresApproval && !state.approvals[input.task]) {
+  if (!input.skipApproval && contract.requiresApproval && state.approvals[input.task] !== "approved") {
     return { ok: false, error: `task ${input.task} needs human approval before spawning ${input.role}` };
   }
+
+  gcDeadWorkers(bus, input.leadSessionId);
+  const fresh = ensureSquadState(bus.deps.dataDir, input.leadSessionId, input.cwd);
   if (!input.skipCap) {
-    const capError = capExceeded(state, input.role);
+    const capError = capExceeded(fresh, input.role, input.cwd);
     if (capError) return { ok: false, error: capError };
   }
 
   const lead = bus.board(input.leadSessionId, "all").find((r) => r.session_id === input.leadSessionId);
   const pid = input.pid ?? lead?.pid ?? 1;
-  const sessionId = `squad-${input.leadSessionId.slice(0, 8)}-${input.role}-${state.nextSeq}`;
-  state.nextSeq += 1;
+  const sessionId = randomUUID();
+  fresh.nextSeq += 1;
   const entry = bus.sessionStart({
     sessionId,
     cwd: lead?.cwd ?? input.cwd,
@@ -167,22 +184,25 @@ export function spawnWorker(
     title: input.role,
   });
   bus.setStatus(sessionId, ROLE_BRIEFS[input.role]);
+  const launch = launchLine(input.role, sessionId);
   const brief = bus.handoff(
     input.leadSessionId,
     sessionId,
     input.task,
-    input.body ||
-      `You are ${input.role}. Call talks_role for your card, then talks_inbox. Launch: grok --agent grok-talks:${input.role}`,
+    `${(input.body || `You are ${input.role}. Call talks_role, then talks_inbox.`).trim()}\nAttach: ${launch}`,
   );
-  if (!brief.ok) return { ok: false, error: brief.error };
-  state.workers.push({
+  if (!brief.ok) {
+    bus.sessionEnd(sessionId);
+    return { ok: false, error: brief.error };
+  }
+  fresh.workers.push({
     sessionId,
     role: input.role,
     task: input.task,
     state: "spawned",
   });
-  saveSquadState(bus.deps.dataDir, state);
-  return { ok: true, member: { role: input.role, sessionId, name: entry.name } };
+  saveSquadState(bus.deps.dataDir, fresh);
+  return { ok: true, member: { role: input.role, sessionId, name: entry.name, launch } };
 }
 
 export function retireWorker(
@@ -212,17 +232,81 @@ export function markHandoffSent(dataDir: string, fromSessionId: SessionId): void
   }
 }
 
+export function retireIfWorkerToLead(bus: TalksBus, fromId: SessionId, to: RosterEntry): void {
+  for (const state of listSquadStates(bus.deps.dataDir)) {
+    const worker = state.workers.find((w) => w.sessionId === fromId && w.state !== "retired");
+    if (!worker) continue;
+    const toRole = cardFromSession(to.name, to.session_id);
+    if (to.session_id === state.leadSessionId || toRole === "lead" || to.name === "lead") {
+      retireWorker(bus, state.leadSessionId, fromId);
+      return;
+    }
+  }
+}
+
+export function gcDeadWorkers(bus: TalksBus, _leadSessionId?: SessionId): number {
+  let n = 0;
+  for (const state of listSquadStates(bus.deps.dataDir)) {
+    for (const w of activeWorkers(state)) {
+      const entry = readRoster(bus.deps, w.sessionId);
+      if (!entry || !isLive(bus.deps, entry)) {
+        retireWorker(bus, state.leadSessionId, w.sessionId);
+        n += 1;
+      }
+    }
+  }
+  return n;
+}
+
+export function isKnownLead(dataDir: string, sessionId: SessionId): boolean {
+  return listSquadStates(dataDir).some((s) => s.leadSessionId === sessionId);
+}
+
+export function findWorker(dataDir: string, sessionId: SessionId): WorkerRecord | undefined {
+  for (const state of listSquadStates(dataDir)) {
+    const w = state.workers.find((row) => row.sessionId === sessionId);
+    if (w) return w;
+  }
+  return undefined;
+}
+
+export function parseHumanApprove(prompt: string): string | undefined {
+  const m = prompt.trim().match(/^\/approve\s+(\S+)/i);
+  return m?.[1];
+}
+
+export function pendingApprovals(dataDir: string, leadSessionId: SessionId): string[] {
+  const state = loadSquadState(dataDir, leadSessionId);
+  if (!state) return [];
+  return Object.entries(state.approvals)
+    .filter(([, v]) => v === "requested" || v.startsWith("requested:"))
+    .map(([task]) => task);
+}
+
 export function requestApproval(dataDir: string, leadSessionId: SessionId, task: string, note: string): void {
+  const taskName = task.trim();
+  if (!taskName || findWorker(dataDir, leadSessionId)) return;
   const state = ensureSquadState(dataDir, leadSessionId, "");
-  if (state.approvals[task] !== "approved") {
-    state.approvals[task] = note.trim() ? `requested:${note.trim()}` : "requested";
+  if (state.approvals[taskName] !== "approved") {
+    state.approvals[taskName] = note.trim() ? `requested:${note.trim()}` : "requested";
   }
   saveSquadState(dataDir, state);
 }
 
 export function approveTask(dataDir: string, leadSessionId: SessionId, task: string): void {
-  const state = ensureSquadState(dataDir, leadSessionId, "");
-  state.approvals[task] = `approved`;
+  const taskName = task.trim();
+  if (!taskName) return;
+  let leadId = leadSessionId;
+  if (!loadSquadState(dataDir, leadId)) {
+    for (const state of listSquadStates(dataDir)) {
+      if (state.workers.some((w) => w.sessionId === leadSessionId)) {
+        leadId = state.leadSessionId;
+        break;
+      }
+    }
+  }
+  const state = ensureSquadState(dataDir, leadId, "");
+  state.approvals[taskName] = "approved";
   saveSquadState(dataDir, state);
 }
 
@@ -234,8 +318,8 @@ export function squadSessionId(leadSessionId: SessionId, role: SquadRole): Sessi
   return `squad-${leadSessionId.slice(0, 8)}-${role}`;
 }
 
-function capExceeded(state: SquadState, role: SquadRole): string | undefined {
-  const caps = loadCaps();
+function capExceeded(state: SquadState, role: SquadRole, cwd?: string): string | undefined {
+  const caps = loadCaps(cwd || state.cwd);
   const live = activeWorkers(state);
   if (live.length >= caps.maxTransient) {
     return `squad full (${caps.maxTransient} live workers)`;

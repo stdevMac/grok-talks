@@ -13,9 +13,8 @@ describe("pulse lantern dummy", () => {
     const result = runPulseLantern(bus, outDir);
 
     expect(result.collisionDenied).toBe(true);
-    expect(result.boardNames).toEqual(
-      expect.arrayContaining(["lead", "planner", "frontend", "backend", "qa"]),
-    );
+    expect(result.retiredAfterHandoff).toBe(true);
+    expect(result.boardNames).toEqual(["lead"]);
     expect(result.contributions.length).toBeGreaterThan(1);
     expect(fs.existsSync(result.htmlPath)).toBe(true);
     expect(result.html).toContain("GROK TALKS");

@@ -30,12 +30,9 @@ Role cards live in `squad/` (constitution + one file per role). The plugin ships
 # this session is the lead
 grok --agent grok-talks:lead
 # /squad   or talks_squad_start
-
-# each role in another terminal
-grok --agent grok-talks:planner
 ```
 
-Default: the lead stays up. Workers are **spawned for one slice and retired** after they hand a result back. Frontend/backend need a human `talks_approve` first.
+Default: the lead stays up. Workers are **spawned for one slice** and **auto-retired** when they hand back to the lead. Frontend/backend need a human `/approve <task>` first (the model cannot approve). Attach a worker with the spawn launch line (a fresh UUID — do not reuse a live session id):
 
 ```bash
 # lead only
@@ -43,10 +40,14 @@ GROK_SESSION_ID=lead node dist/cli.js squad
 
 # later
 GROK_SESSION_ID=lead node dist/cli.js request-approval slice-auth
+# in the lead TUI: /approve slice-auth
+# or:
 GROK_SESSION_ID=lead node dist/cli.js approve slice-auth
 GROK_SESSION_ID=lead node dist/cli.js spawn frontend slice-auth "own the glass"
-GROK_SESSION_ID=lead node dist/cli.js retire <worker-session-id>
+# spawn prints: frontend	<uuid>	grok --session-id <uuid> --agent grok-talks:frontend
 ```
+
+Optional project overrides live in `.grok/talks-pack.json` (`maxTransient`, `perRole`). Handoffs may include `--commit <sha>`.
 
 Roles: lead, planner, explorer, frontend, backend, qa, validator, adversarial, security.
 

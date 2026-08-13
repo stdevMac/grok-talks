@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { displayName, readSessionTitle } from "../bus/names.js";
 import { readRoster, writeRoster } from "../bus/roster.js";
+import { approveTask, findWorker, gcDeadWorkers, pendingApprovals, parseHumanApprove } from "../bus/squad.js";
 import { TalksBus } from "../bus/talks.js";
 import { eventName, isWriteTool, writePath, type HookEvent } from "./events.js";
 
@@ -28,9 +29,16 @@ function handleHookInner(
   if (!sessionId) return undefined;
 
   if (name === "session_start") {
-    const title = extra.grokHome ? readSessionTitle(extra.grokHome, cwd, sessionId) : undefined;
+    const grokTitle = extra.grokHome ? readSessionTitle(extra.grokHome, cwd, sessionId) : undefined;
+    const existing = readRoster(bus.deps, sessionId);
+    const worker = findWorker(bus.deps.dataDir, sessionId);
+    const title = worker?.role || grokTitle || existing?.name;
     const entry = bus.sessionStart({ sessionId, cwd, pid: extra.pid, title });
-    writeRoster(bus.deps, { ...entry, name: displayName(title, entry.project, sessionId) });
+    writeRoster(bus.deps, {
+      ...entry,
+      name: displayName(title, entry.project, sessionId),
+      working_on: existing?.working_on || entry.working_on,
+    });
     return undefined;
   }
   if (name === "session_end") {
@@ -38,7 +46,14 @@ function handleHookInner(
     return undefined;
   }
   if (name === "user_prompt_submit") {
-    bus.promptSubmit(sessionId, typeof ev.prompt === "string" ? ev.prompt : "");
+    const prompt = typeof ev.prompt === "string" ? ev.prompt : "";
+    const task = parseHumanApprove(prompt);
+    if (task) {
+      approveTask(bus.deps.dataDir, sessionId, task);
+      bus.heartbeat(sessionId);
+      return undefined;
+    }
+    bus.promptSubmit(sessionId, prompt);
     return undefined;
   }
   if (name === "post_tool_use" && isWriteTool(ev.toolName)) {
@@ -68,6 +83,16 @@ function handleHookInner(
       };
     }
     bus.heartbeat(sessionId, "idle");
+    gcDeadWorkers(bus, sessionId);
+    const pending = pendingApprovals(bus.deps.dataDir, sessionId);
+    if (pending.length > 0) {
+      return {
+        hookSpecificOutput: {
+          hookEventName: "Stop",
+          additionalContext: `Pending human approvals: ${pending.join(", ")}. Type /approve <task> — the model cannot approve.`,
+        },
+      };
+    }
     if (ev.stopHookActive) return undefined;
     const arm = bus.shouldArmLoop(sessionId, ev.sessionCrons ?? []);
     if (arm.arm && arm.prompt) {

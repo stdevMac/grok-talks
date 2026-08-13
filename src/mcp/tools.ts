@@ -1,6 +1,7 @@
 import { isSquadRole } from "../bus/squad.js";
 import {
-  approveTask,
+  findWorker,
+  gcDeadWorkers,
   parseRoles,
   requestApproval,
   retireWorker,
@@ -24,12 +25,15 @@ export function callTalksTool(
   if (!sessionId) return { text: "GROK_SESSION_ID is required", isError: true };
   try {
     if (name === "talks_board") {
+      gcDeadWorkers(bus, sessionId);
       const scope = (args.scope === "all" ? "all" : "project") as BoardScope;
       const rows = bus.board(sessionId, scope);
       const text = rows
         .map((r) => {
           const files = bus.claims(r.session_id).map((c) => c.path).join(", ");
-          return `${r.name} ${r.session_id} ${r.state} ${r.project} ${r.working_on}${files ? " files:" + files : ""}`;
+          const w = findWorker(bus.deps.dataDir, r.session_id);
+          const extra = w ? ` [${w.state} task=${w.task}]` : "";
+          return `${r.name} ${r.session_id} ${r.state} ${r.project} ${r.working_on}${files ? " files:" + files : ""}${extra}`;
         })
         .join("\n");
       return { text: text || "(no live coworkers)" };
@@ -63,9 +67,7 @@ export function callTalksTool(
       );
       const squad = startSquad(bus, { leadSessionId: sessionId, cwd, roles });
       return {
-        text: squad.members
-          .map((m) => `${m.role}\t${m.sessionId}\tgrok --agent grok-talks:${m.role}`)
-          .join("\n"),
+        text: squad.members.map((m) => `${m.role}\t${m.sessionId}\t${m.launch}`).join("\n"),
       };
     }
     if (name === "talks_role") {
@@ -78,6 +80,7 @@ export function callTalksTool(
         String(args.to ?? ""),
         String(args.task ?? ""),
         String(args.body ?? ""),
+        args.commit ? String(args.commit) : undefined,
       );
       return r.ok ? { text: `handoff ${r.mail.id}` } : { text: r.error, isError: true };
     }
@@ -93,7 +96,7 @@ export function callTalksTool(
       });
       if (!r.ok) return { text: r.error, isError: true };
       return {
-        text: `${r.member.role}\t${r.member.sessionId}\tgrok --agent grok-talks:${r.member.role}`,
+        text: `${r.member.role}\t${r.member.sessionId}\t${r.member.launch}`,
       };
     }
     if (name === "talks_retire") {
@@ -101,12 +104,16 @@ export function callTalksTool(
       return r.ok ? { text: "retired" } : { text: r.error, isError: true };
     }
     if (name === "talks_request_approval") {
-      requestApproval(bus.deps.dataDir, sessionId, String(args.task ?? ""), String(args.body ?? ""));
+      const task = String(args.task ?? "").trim();
+      if (!task) return { text: "empty task", isError: true };
+      requestApproval(bus.deps.dataDir, sessionId, task, String(args.body ?? ""));
       return { text: "requested" };
     }
     if (name === "talks_approve") {
-      approveTask(bus.deps.dataDir, sessionId, String(args.task ?? ""));
-      return { text: "approved" };
+      return {
+        text: "only the human can approve: type /approve <task> or run `talks approve <task>` in a shell",
+        isError: true,
+      };
     }
     return { text: `unknown tool ${name}`, isError: true };
   } catch (err) {
