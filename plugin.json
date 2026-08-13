@@ -1,0 +1,6 @@
+{
+  "name": "grok-talks",
+  "version": "0.1.0",
+  "description": "Coworker office for live Grok TUI sessions: board, DMs, and same-project collision nags.",
+  "author": { "name": "blockvantage" }
+}
