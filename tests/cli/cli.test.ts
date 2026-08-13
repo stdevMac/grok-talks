@@ -21,7 +21,7 @@ describe("cli", () => {
     expect(runCli(bus, "aaa", ["approve", "glass"]).status).toBe(0);
     const spawned = runCli(bus, "aaa", ["spawn", "explorer", "look", "scan the repo"]);
     expect(spawned.status).toBe(0);
-    expect(spawned.text).toMatch(/--session-id [0-9a-f-]{36} --agent grok-talks:explorer/);
+    expect(spawned.text).toMatch(/--session-id [0-9a-f-]{36} --agent grok-talks:explorer "/);
     const explorerId = spawned.text.split("\t")[1];
     expect(runCli(bus, explorerId, ["handoff", "aaa", "look", "nothing to reuse", "--commit", "abcdef1"]).status).toBe(0);
     expect(runCli(bus, "aaa", ["inbox"]).text).toMatch(/COMMIT abcdef1/);

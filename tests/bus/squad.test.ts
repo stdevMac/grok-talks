@@ -7,12 +7,13 @@ import {
   approveTask,
   gcDeadWorkers,
   loadSquadState,
+  markWorkerAttached,
   parseRoles,
   spawnWorker,
   startSquad,
 } from "../../src/bus/squad.js";
 import { TalksBus } from "../../src/bus/talks.js";
-import { HEARTBEAT_MS } from "../../src/bus/types.js";
+import { HEARTBEAT_MS, SPAWN_GRACE_MS } from "../../src/bus/types.js";
 import { writeRoster } from "../../src/bus/roster.js";
 import { deps } from "../helpers.js";
 
@@ -128,7 +129,9 @@ describe("squad", () => {
     expect(peer.ok).toBe(false);
     if (!peer.ok) expect(peer.error).toMatch(/only handoff/);
 
-    expect(fe.member.launch).toMatch(/--session-id [0-9a-f-]{36} --agent grok-talks:frontend/);
+    expect(fe.member.launch).toMatch(
+      /--session-id [0-9a-f-]{36} --agent grok-talks:frontend "Call talks_role/,
+    );
     const back = bus.handoff(fe.member.sessionId, "lead", "glass", "sign.html done", "abc1234");
     expect(back.ok).toBe(true);
     if (back.ok) expect(back.mail.commit).toBe("abc1234");
@@ -223,7 +226,26 @@ describe("squad", () => {
     expect(activeWorkers(loadSquadState(d.dataDir, "lead-1")!).length).toBe(0);
   });
 
-  it("garbage-collects workers whose pid or heartbeat is dead", () => {
+  it("does not GC an unattached spawn during grace, even with a dead placeholder pid", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
+    startSquad(bus, { leadSessionId: "lead-1", cwd: "/repo" });
+
+    const waiting = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      role: "planner",
+      task: "plan",
+      body: "slice",
+      pid: 999,
+    });
+    expect(waiting.ok).toBe(true);
+    expect(gcDeadWorkers(bus, "lead-1")).toBe(0);
+    expect(bus.board("lead-1", "project").some((r) => r.name === "planner")).toBe(true);
+  });
+
+  it("garbage-collects attached workers whose pid is dead, and unattached after grace", () => {
     const d = deps();
     const bus = new TalksBus(d);
     bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
@@ -238,6 +260,8 @@ describe("squad", () => {
       pid: 999,
     });
     expect(dead.ok).toBe(true);
+    if (!dead.ok) return;
+    markWorkerAttached(d.dataDir, dead.member.sessionId);
     expect(gcDeadWorkers(bus, "lead-1")).toBe(1);
     expect(activeWorkers(loadSquadState(d.dataDir, "lead-1")!).length).toBe(0);
 
@@ -250,9 +274,27 @@ describe("squad", () => {
       pid: 100,
     });
     expect(stale.ok).toBe(true);
-    d.clock.advance(HEARTBEAT_MS + 1);
+    d.clock.advance(SPAWN_GRACE_MS + 1);
     expect(gcDeadWorkers(bus)).toBe(1);
     expect(activeWorkers(loadSquadState(d.dataDir, "lead-1")!).length).toBe(0);
+  });
+
+  it("still spawns when the lead is off the live board and does not use pid 1", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
+    startSquad(bus, { leadSessionId: "lead-1", cwd: "/repo" });
+    d.clock.advance(HEARTBEAT_MS + 1);
+    expect(bus.board("lead-1", "all").some((r) => r.session_id === "lead-1")).toBe(false);
+    const spawned = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      role: "planner",
+      task: "plan",
+      body: "slice",
+    });
+    expect(spawned.ok).toBe(true);
+    expect(gcDeadWorkers(bus)).toBe(0);
   });
 
   it("honors .grok/talks-pack.json caps in the project", () => {

@@ -2,7 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { displayName, readSessionTitle } from "../bus/names.js";
 import { readRoster, writeRoster } from "../bus/roster.js";
-import { approveTask, findWorker, gcDeadWorkers, pendingApprovals, parseHumanApprove } from "../bus/squad.js";
+import { bindSession, unbindSession } from "../bus/sessionBind.js";
+import {
+  approveTask,
+  findWorker,
+  gcDeadWorkers,
+  markWorkerAttached,
+  pendingApprovals,
+  parseHumanApprove,
+} from "../bus/squad.js";
 import { TalksBus } from "../bus/talks.js";
 import { eventName, isWriteTool, writePath, type HookEvent } from "./events.js";
 
@@ -39,9 +47,12 @@ function handleHookInner(
       name: displayName(title, entry.project, sessionId),
       working_on: existing?.working_on || entry.working_on,
     });
+    markWorkerAttached(bus.deps.dataDir, sessionId);
+    bindSession(bus.deps.dataDir, extra.pid, sessionId);
     return undefined;
   }
   if (name === "session_end") {
+    unbindSession(bus.deps.dataDir, sessionId);
     bus.sessionEnd(sessionId);
     return undefined;
   }

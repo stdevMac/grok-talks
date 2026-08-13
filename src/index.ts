@@ -20,6 +20,7 @@ export {
   activeWorkers,
   launchLine,
   gcDeadWorkers,
+  markWorkerAttached,
   parseHumanApprove,
   isKnownLead,
 } from "./bus/squad.js";

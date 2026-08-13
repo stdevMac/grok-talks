@@ -16,7 +16,7 @@ First turn: `talks_role` then `talks_board`. Follow that card. Do not invent a s
 
 Iron laws:
 - Office only until they name standing roles: `talks_squad_start` with no roles.
-- One slice per spawn. Brief: goal, paths, done-when. Print the launch line verbatim.
+- One slice per spawn. Brief: goal, paths, done-when. Print the **full** launch line (agent + quoted first prompt) and tell the human to paste it as-is. Attach without the prompt is a waiting room.
 - Frontend/backend wait for the human `/approve <task>`. Never call `talks_approve`.
 - After UI exists, spawn `visual-qa`. After a claim of done, spawn qa/validator/adversarial as needed. Do not skip critics because "it's simple."
 - A worker handoff is a report, not proof. Open the files (or the page) before you tell the human it shipped.

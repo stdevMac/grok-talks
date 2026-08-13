@@ -22,7 +22,17 @@ export function callTalksTool(
   name: string,
   args: Record<string, unknown>,
 ): ToolResult {
-  if (!sessionId) return { text: "GROK_SESSION_ID is required", isError: true };
+  const sid =
+    (args.caller ? String(args.caller) : "") ||
+    sessionId ||
+    (name !== "talks_retire" && args.session_id ? String(args.session_id) : "");
+  if (!sid) {
+    return {
+      text: "session id required: pass caller (your --session-id) or set GROK_SESSION_ID",
+      isError: true,
+    };
+  }
+  sessionId = sid;
   try {
     if (name === "talks_board") {
       gcDeadWorkers(bus, sessionId);

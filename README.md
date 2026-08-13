@@ -146,8 +146,9 @@ Cards live in `squad/roles/`. Matching Grok agents live in `agents/`.
   │  /approve glass    │  (hook records it; model cannot) │
   │                    │ talks_spawn frontend glass …     │
   │                    │  prints launch line ─────────────┼──► grok --session-id <uuid> \
-  │                    │                                  │         --agent grok-talks:frontend
-  │                    │                                  │  talks_role, do the slice
+  │                    │                                  │         --agent grok-talks:frontend \
+  │                    │                                  │         "Call talks_role..."
+  │                    │                                  │  first prompt starts the turn
   │                    │  inbox: handoff + optional sha   │  talks_handoff lead
   │                    │  worker auto-retires             │  (gone from /board)
   │  see the result    │                                  │
@@ -156,7 +157,7 @@ Cards live in `squad/roles/`. Matching Grok agents live in `agents/`.
 Rules that keep this safe:
 
 1. **You** type `/approve <task>` for frontend/backend. `talks_approve` is not a tool the model can call. The Stop hook nags the lead until you approve.
-2. Spawn prints a **new UUID**. Attach with that exact line. Do not reuse a live session id (`grok --session-id` errors if the session already exists).
+2. Spawn prints a **new UUID** and a **quoted first prompt**. Paste the whole line. A TUI with no prompt never starts a turn, so the briefing sits unread. Do not reuse a live session id.
 3. A worker may hand off **only to the lead**. That handoff **retires** them. `talks_retire` is only for someone stuck on the board.
 4. Caps (defaults): 4 live workers; 1 planner / explorer / qa / validator / adversarial / security; 2 frontend; 2 backend. Override per project in `.grok/talks-pack.json`.
 

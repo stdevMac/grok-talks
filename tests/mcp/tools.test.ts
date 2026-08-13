@@ -100,5 +100,17 @@ describe("mcp tools", () => {
     expect(approve.text).toMatch(/only the human/);
     expect(callTalksTool(bus, "lead-1", "talks_retire", { session_id: id }).text).toBe("retired");
   });
+
+  it("accepts caller when GROK_SESSION_ID was not passed into the MCP process", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
+    const missing = callTalksTool(bus, "", "talks_board", {});
+    expect(missing.isError).toBe(true);
+    const viaCaller = callTalksTool(bus, "", "talks_board", { caller: "lead-1" });
+    expect(viaCaller.isError).toBeFalsy();
+    expect(viaCaller.text).toMatch(/lead/);
+  });
 });
+
 

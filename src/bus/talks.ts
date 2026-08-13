@@ -10,7 +10,7 @@ import { displayName } from "./names.js";
 import { normalizePath, projectRoot } from "./normalize.js";
 import { allowChat } from "./rateLimit.js";
 import { handoffDenied } from "./contracts.js";
-import { isKnownLead, markHandoffSent, retireIfWorkerToLead } from "./squad.js";
+import { isKnownLead, markHandoffSent, retireIfWorkerToLead, spawningRoster } from "./squad.js";
 import { cardFromSession, formatRoleBriefing } from "./roleCards.js";
 import { listRoster, readRoster, removeRoster, writeRoster } from "./roster.js";
 import { markTalked } from "./talked.js";
@@ -255,7 +255,13 @@ export class TalksBus {
 
   board(sessionId: SessionId, scope: BoardScope = "project"): RosterEntry[] {
     const us = readRoster(this.deps, sessionId);
-    const all = listRoster(this.deps);
+    const seen = new Set<string>();
+    const all: RosterEntry[] = [];
+    for (const row of [...listRoster(this.deps), ...spawningRoster(this)]) {
+      if (seen.has(row.session_id)) continue;
+      seen.add(row.session_id);
+      all.push(row);
+    }
     if (scope === "all" || !us) return all;
     return all.filter((p) => p.project === us.project);
   }

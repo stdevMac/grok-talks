@@ -12,6 +12,8 @@ export const CHAT_WINDOW_MS = 60 * 1000;
 export const DRAIN_CAP = 8;
 export const STATUS_MAX = 200;
 export const LOOP_NAG_MS = 10 * 60 * 1000;
+/** Unattached spawned workers stay on the board this long even if the placeholder pid is dead. */
+export const SPAWN_GRACE_MS = 30 * 60 * 1000;
 
 export interface RosterEntry {
   session_id: SessionId;

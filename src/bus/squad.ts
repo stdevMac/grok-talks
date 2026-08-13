@@ -6,7 +6,9 @@ import { readJson, writeJsonAtomic } from "./fs.js";
 import { loadCaps, loadContract } from "./contracts.js";
 import { isLive, readRoster, writeRoster } from "./roster.js";
 import type { TalksBus } from "./talks.js";
+import { toIso } from "./clock.js";
 import type { RosterEntry, SessionId } from "./types.js";
+import { SPAWN_GRACE_MS } from "./types.js";
 
 export const SQUAD_ROLES = [
   "planner",
@@ -43,8 +45,12 @@ export interface SquadMember {
   launch: string;
 }
 
+export const WORKER_FIRST_TURN =
+  "Call talks_role, then talks_inbox. If a talks_* tool asks for a session id, pass caller=<the --session-id>. Do only the assigned slice. Handoff only the lead.";
+
 export function launchLine(role: string, sessionId: string): string {
-  return `grok --session-id ${sessionId} --agent grok-talks:${role}`;
+  const kick = `${WORKER_FIRST_TURN} caller=${sessionId}`;
+  return `grok --session-id ${sessionId} --agent grok-talks:${role} ${JSON.stringify(kick)}`;
 }
 
 export interface WorkerRecord {
@@ -52,6 +58,8 @@ export interface WorkerRecord {
   role: SquadRole;
   task: string;
   state: WorkerState;
+  spawnedAt?: string;
+  attached?: boolean;
 }
 
 export interface SquadState {
@@ -175,8 +183,9 @@ export function spawnWorker(
     if (capError) return { ok: false, error: capError };
   }
 
-  const lead = bus.board(input.leadSessionId, "all").find((r) => r.session_id === input.leadSessionId);
-  const pid = input.pid ?? lead?.pid ?? 1;
+  const lead = readRoster(bus.deps, input.leadSessionId);
+  const rawPid = input.pid ?? lead?.pid ?? 0;
+  const pid = rawPid > 1 ? rawPid : 0;
   const sessionId = randomUUID();
   fresh.nextSeq += 1;
   const entry = bus.sessionStart({
@@ -202,6 +211,8 @@ export function spawnWorker(
     role: input.role,
     task: input.task,
     state: "spawned",
+    spawnedAt: toIso(bus.deps.clock.now()),
+    attached: false,
   });
   saveSquadState(bus.deps.dataDir, fresh);
   return { ok: true, member: { role: input.role, sessionId, name: entry.name, launch } };
@@ -247,9 +258,11 @@ export function retireIfWorkerToLead(bus: TalksBus, fromId: SessionId, to: Roste
 }
 
 export function gcDeadWorkers(bus: TalksBus, _leadSessionId?: SessionId): number {
+  const now = bus.deps.clock.now().getTime();
   let n = 0;
   for (const state of listSquadStates(bus.deps.dataDir)) {
     for (const w of activeWorkers(state)) {
+      if (withinSpawnGrace(w, now)) continue;
       const entry = readRoster(bus.deps, w.sessionId);
       if (!entry || !isLive(bus.deps, entry)) {
         retireWorker(bus, state.leadSessionId, w.sessionId);
@@ -258,6 +271,35 @@ export function gcDeadWorkers(bus: TalksBus, _leadSessionId?: SessionId): number
     }
   }
   return n;
+}
+
+export function markWorkerAttached(dataDir: string, sessionId: SessionId): void {
+  for (const state of listSquadStates(dataDir)) {
+    const worker = state.workers.find((w) => w.sessionId === sessionId);
+    if (!worker || worker.attached) continue;
+    worker.attached = true;
+    saveSquadState(dataDir, state);
+    return;
+  }
+}
+
+export function withinSpawnGrace(worker: WorkerRecord, nowMs: number): boolean {
+  if (worker.attached || worker.state === "retired") return false;
+  const t = Date.parse(worker.spawnedAt ?? "");
+  return Number.isFinite(t) && nowMs - t < SPAWN_GRACE_MS;
+}
+
+export function spawningRoster(bus: TalksBus): RosterEntry[] {
+  const now = bus.deps.clock.now().getTime();
+  const out: RosterEntry[] = [];
+  for (const state of listSquadStates(bus.deps.dataDir)) {
+    for (const w of activeWorkers(state)) {
+      if (!withinSpawnGrace(w, now)) continue;
+      const entry = readRoster(bus.deps, w.sessionId);
+      if (entry) out.push(entry);
+    }
+  }
+  return out;
 }
 
 export function isKnownLead(dataDir: string, sessionId: SessionId): boolean {

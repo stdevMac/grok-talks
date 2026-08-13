@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isApproved, requestApproval, spawnWorker, startSquad } from "../../src/bus/squad.js";
+import { isApproved, loadSquadState, requestApproval, spawnWorker, startSquad } from "../../src/bus/squad.js";
+import { resolveSessionId } from "../../src/bus/sessionBind.js";
 import { TalksBus } from "../../src/bus/talks.js";
 import { handleHook } from "../../src/hooks/handle.js";
 import { deps } from "../helpers.js";
@@ -192,5 +193,7 @@ describe("hooks", () => {
     const row = bus.board("lead-1", "project").find((r) => r.session_id === spawned.member.sessionId);
     expect(row?.name).toBe("planner");
     expect(row?.working_on).toMatch(/ordered slices/);
+    expect(loadSquadState(d.dataDir, "lead-1")?.workers[0].attached).toBe(true);
+    expect(resolveSessionId(d.dataDir, { ppid: 100, env: {} })).toBe(spawned.member.sessionId);
   });
 });

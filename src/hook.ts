@@ -1,5 +1,6 @@
 import { systemClock, systemPid } from "./bus/clock.js";
 import { defaultDataDir } from "./bus/paths.js";
+import { bindSession } from "./bus/sessionBind.js";
 import { TalksBus } from "./bus/talks.js";
 import { handleHook, resolvePid } from "./hooks/handle.js";
 
@@ -22,6 +23,10 @@ async function main() {
       pid: systemPid,
       grokHome,
     });
+    if (sessionId) {
+      bindSession(bus.deps.dataDir, pid, sessionId);
+      bindSession(bus.deps.dataDir, process.ppid, sessionId);
+    }
     const out = handleHook(bus, ev, { pid, grokHome });
     if (out !== undefined) process.stdout.write(JSON.stringify(out));
   } catch {

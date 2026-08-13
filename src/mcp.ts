@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { systemClock, systemPid } from "./bus/clock.js";
 import { defaultDataDir } from "./bus/paths.js";
+import { resolveSessionId } from "./bus/sessionBind.js";
 import { TalksBus } from "./bus/talks.js";
 import { callTalksTool } from "./mcp/tools.js";
 
@@ -13,60 +14,70 @@ const bus = new TalksBus({
   grokHome: process.env.GROK_HOME ?? `${process.env.HOME}/.grok`,
 });
 
-function sessionId(): string {
-  return process.env.GROK_SESSION_ID ?? "";
+function sessionId(caller?: string): string {
+  return resolveSessionId(bus.deps.dataDir, {
+    explicit: caller,
+    env: process.env,
+    ppid: process.ppid,
+  });
 }
+
+const caller = z.string().optional();
 
 const server = new McpServer({ name: "grok-talks", version: "0.1.0" });
 
-server.tool("talks_board", { scope: z.enum(["project", "all"]).optional() }, async ({ scope }) => {
-  const r = callTalksTool(bus, sessionId(), "talks_board", { scope });
+server.tool("talks_board", { scope: z.enum(["project", "all"]).optional(), caller }, async (args) => {
+  const r = callTalksTool(bus, sessionId(args.caller), "talks_board", args);
   return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
 });
 
-server.tool("talks_say", { to: z.string(), body: z.string() }, async ({ to, body }) => {
-  const r = callTalksTool(bus, sessionId(), "talks_say", { to, body });
+server.tool("talks_say", { to: z.string(), body: z.string(), caller }, async (args) => {
+  const r = callTalksTool(bus, sessionId(args.caller), "talks_say", args);
   return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
 });
 
-server.tool("talks_inbox", { mark_read: z.boolean().optional() }, async ({ mark_read }) => {
-  const r = callTalksTool(bus, sessionId(), "talks_inbox", { mark_read });
+server.tool("talks_inbox", { mark_read: z.boolean().optional(), caller }, async (args) => {
+  const r = callTalksTool(bus, sessionId(args.caller), "talks_inbox", args);
   return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
 });
 
 server.tool(
   "talks_mute",
-  { peer: z.string().optional(), on: z.boolean().optional() },
-  async ({ peer, on }) => {
-    const r = callTalksTool(bus, sessionId(), "talks_mute", { peer, on });
+  { peer: z.string().optional(), on: z.boolean().optional(), caller },
+  async (args) => {
+    const r = callTalksTool(bus, sessionId(args.caller), "talks_mute", args);
     return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
   },
 );
 
-server.tool("talks_status", { working_on: z.string() }, async ({ working_on }) => {
-  const r = callTalksTool(bus, sessionId(), "talks_status", { working_on });
+server.tool("talks_status", { working_on: z.string(), caller }, async (args) => {
+  const r = callTalksTool(bus, sessionId(args.caller), "talks_status", args);
   return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
 });
 
 server.tool(
   "talks_squad_start",
-  { roles: z.union([z.string(), z.array(z.string())]).optional(), cwd: z.string().optional() },
-  async ({ roles, cwd }) => {
-    const r = callTalksTool(bus, sessionId(), "talks_squad_start", { roles, cwd });
+  {
+    roles: z.union([z.string(), z.array(z.string())]).optional(),
+    cwd: z.string().optional(),
+    caller,
+  },
+  async (args) => {
+    const r = callTalksTool(bus, sessionId(args.caller), "talks_squad_start", args);
     return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
   },
 );
 
-server.tool("talks_role", {}, async () => {
-  const r = callTalksTool(bus, sessionId(), "talks_role", {});
+server.tool("talks_role", { caller }, async (args) => {
+  const r = callTalksTool(bus, sessionId(args.caller), "talks_role", args);
   return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
 });
 
 server.tool(
   "talks_handoff",
-  { to: z.string(), task: z.string(), body: z.string(), commit: z.string().optional() },
-  async ({ to, task, body, commit }) => {
-    const r = callTalksTool(bus, sessionId(), "talks_handoff", { to, task, body, commit });
+  { to: z.string(), task: z.string(), body: z.string(), commit: z.string().optional(), caller },
+  async (args) => {
+    const r = callTalksTool(bus, sessionId(args.caller), "talks_handoff", args);
     return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
   },
 );
@@ -78,23 +89,24 @@ server.tool(
     task: z.string(),
     body: z.string().optional(),
     cwd: z.string().optional(),
+    caller,
   },
-  async ({ role, task, body, cwd }) => {
-    const r = callTalksTool(bus, sessionId(), "talks_spawn", { role, task, body, cwd });
+  async (args) => {
+    const r = callTalksTool(bus, sessionId(args.caller), "talks_spawn", args);
     return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
   },
 );
 
-server.tool("talks_retire", { session_id: z.string() }, async ({ session_id }) => {
-  const r = callTalksTool(bus, sessionId(), "talks_retire", { session_id });
+server.tool("talks_retire", { session_id: z.string(), caller }, async (args) => {
+  const r = callTalksTool(bus, sessionId(args.caller), "talks_retire", args);
   return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
 });
 
 server.tool(
   "talks_request_approval",
-  { task: z.string(), body: z.string().optional() },
-  async ({ task, body }) => {
-    const r = callTalksTool(bus, sessionId(), "talks_request_approval", { task, body });
+  { task: z.string(), body: z.string().optional(), caller },
+  async (args) => {
+    const r = callTalksTool(bus, sessionId(args.caller), "talks_request_approval", args);
     return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
   },
 );

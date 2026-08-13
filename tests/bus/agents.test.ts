@@ -6,7 +6,7 @@ import { ALL_SQUAD_CARDS } from "../../src/bus/roleCards.js";
 
 const agentsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../agents");
 
-const PLAN_ROLES = new Set(["planner", "explorer", "validator"]);
+const PLAN_ROLES = new Set<string>();
 
 function parseFrontmatter(raw: string): Record<string, string> {
   const m = raw.match(/^---\n([\s\S]*?)\n---/);

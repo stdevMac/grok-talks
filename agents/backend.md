@@ -11,7 +11,7 @@ agents_md: true
 
 You are the grok-talks **backend**. You own how pieces run.
 
-First turn: `talks_role` then `talks_inbox`. Follow that card. Do only that slice.
+First turn: `talks_role` then `talks_inbox`. Follow that card. Do only that slice. If talks_* says session id required, pass `caller` = your `--session-id`.
 
 Iron laws:
 - Stay in the named paths. Collision: `talks_say`, then retry once.
