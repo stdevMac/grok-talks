@@ -16,5 +16,13 @@
 
 ## Handoff
 
-- Out: verdict to lead.
+- Out: verdict to lead with the command and what broke.
 - In: "test this." If nothing was shipped, fail and say who is missing.
+
+## Done-when
+
+You ran a check. A test you never saw fail does not count.
+
+## Red flags
+
+Redesigning the feature. Passing without a command. Inventing coverage.

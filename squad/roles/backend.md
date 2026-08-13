@@ -16,5 +16,13 @@
 
 ## Handoff
 
-- Out: done note to lead.
+- Out: done note to lead with paths (and commit if you made one).
 - In: an engine slice. If it is purely visual, hand it back to the lead.
+
+## Done-when
+
+The named engine path works, with command output or a file you can point at.
+
+## Red flags
+
+Guess-and-check patches. Redesigning the UI. "Should work" without a command.

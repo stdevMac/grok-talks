@@ -31,3 +31,11 @@ NEXT: which role should fix (usually frontend) and the first slice
 
 - Out: the punch list. Lead assigns the first P0.
 - In: "critique this." If there is no UI yet, reject and say what is missing.
+
+## Done-when
+
+Five concrete findings or a reject for missing UI. "Looks great" is failure.
+
+## Red flags
+
+Implementing CSS. Softening the verdict. Critiquing a vibe you never opened.

@@ -16,5 +16,13 @@
 
 ## Handoff
 
-- Out: findings/fixes to lead.
+- Out: findings/fixes to lead with paths.
 - In: "lock this down." Stay inside that ask.
+
+## Done-when
+
+Shipped files and bus mail have no tokens/keys/raw env, or you named what still leaks.
+
+## Red flags
+
+A lecture with no path. Adding product surface. Theoretical issues you did not trace.

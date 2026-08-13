@@ -17,5 +17,13 @@
 
 ## Handoff
 
-- Out: plan to lead.
+- Out: plan to lead (slices: name, owner role, paths, done-when).
 - In: a job to plan. If the job is already one slice, say so and name the owner.
+
+## Done-when
+
+The lead can spawn the first slice without guessing owners or paths.
+
+## Red flags
+
+Editing product files. Inventing roles that are not in the squad. Planning the whole company when they asked for one page.

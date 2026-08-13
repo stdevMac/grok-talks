@@ -16,5 +16,13 @@
 
 ## Handoff
 
-- Out: findings to lead.
+- Out: findings to lead (paths + gaps).
 - In: a question about the tree. Answer from files, then stop.
+
+## Done-when
+
+The lead has concrete paths, or a named gap, not a tour.
+
+## Red flags
+
+Creating files. Speculative architecture. Whole-disk search.

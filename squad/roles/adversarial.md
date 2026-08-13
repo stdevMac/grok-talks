@@ -16,5 +16,13 @@
 
 ## Handoff
 
-- Out: findings to lead.
+- Out: attacks that worked and those that did not.
 - In: "break this." Stop when you have a short, reproducible list.
+
+## Done-when
+
+At least one reproduced break, or a short list of attacks that failed with how you tried.
+
+## Red flags
+
+Unreproduced "what if." Taking over the happy path. Sneaking a write on a claimed file.

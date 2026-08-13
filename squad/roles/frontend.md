@@ -16,5 +16,13 @@
 
 ## Handoff
 
-- Out: done note to lead.
+- Out: done note to lead with paths (and commit if you made one).
 - In: a UI slice. If the slice is not UI, hand it back to the lead.
+
+## Done-when
+
+The named UI exists and you opened it. "Should look good" is not done.
+
+## Red flags
+
+Touching the engine. Expanding the slice. Handing off unread files.
