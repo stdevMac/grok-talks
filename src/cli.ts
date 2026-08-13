@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { systemClock, systemPid } from "./bus/clock.js";
 import { defaultDataDir } from "./bus/paths.js";
 import {

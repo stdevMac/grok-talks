@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "bin": {
-    "grok-talks": "dist/cli.js"
+    "grok-talks": "dist/cli.js",
+    "talks": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
