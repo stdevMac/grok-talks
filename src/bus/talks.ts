@@ -9,6 +9,7 @@ import { isMuted, readMutes, setMute } from "./mutes.js";
 import { displayName } from "./names.js";
 import { normalizePath, projectRoot } from "./normalize.js";
 import { allowChat } from "./rateLimit.js";
+import { cardFromSession, formatRoleBriefing } from "./roleCards.js";
 import { listRoster, readRoster, removeRoster, writeRoster } from "./roster.js";
 import { markTalked } from "./talked.js";
 import {
@@ -188,6 +189,42 @@ export class TalksBus {
     });
     markTalked(this.deps, from, resolved.peer.session_id);
     return { ok: true, mail };
+  }
+
+  handoff(
+    from: SessionId,
+    to: string,
+    task: string,
+    body: string,
+  ): { ok: true; mail: Mail } | { ok: false; error: string } {
+    const taskName = task.trim();
+    const trimmed = body.trim();
+    if (!taskName) return { ok: false, error: "empty task" };
+    if (!trimmed) return { ok: false, error: "empty body" };
+    const resolved = this.resolvePeer(from, to);
+    if (!resolved.ok) return resolved;
+    const us = readRoster(this.deps, from);
+    const mail = appendMail(this.deps, resolved.peer.session_id, {
+      from,
+      from_name: us?.name ?? from,
+      kind: "handoff",
+      project: us?.project ?? "",
+      body: `TASK ${taskName}\n${trimmed}`,
+      paths: [],
+    });
+    markTalked(this.deps, from, resolved.peer.session_id);
+    return { ok: true, mail };
+  }
+
+  roleCard(sessionId: SessionId): { ok: true; role: string; text: string } | { ok: false; error: string } {
+    const us = readRoster(this.deps, sessionId);
+    const role = cardFromSession(us?.name ?? "", sessionId);
+    if (!role) return { ok: false, error: "no squad role on this session" };
+    try {
+      return { ok: true, role, text: formatRoleBriefing(role) };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "role card missing" };
+    }
   }
 
   inbox(sessionId: SessionId, opts?: { markRead?: boolean }): Mail[] {

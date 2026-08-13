@@ -76,6 +76,12 @@ export function startSquad(
       title: role,
     });
     bus.setStatus(sessionId, ROLE_BRIEFS[role]);
+    bus.handoff(
+      input.leadSessionId,
+      sessionId,
+      "briefing",
+      `You are ${role}. Call talks_role for your card, then talks_inbox, then wait for a handoff. Launch with: grok --agent grok-talks:${role}`,
+    );
     members.push({ role, sessionId, name: entry.name });
   }
   return { leadSessionId: input.leadSessionId, members };

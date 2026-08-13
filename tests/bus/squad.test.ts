@@ -57,4 +57,29 @@ describe("squad", () => {
     expect(parseRoles(undefined)).toEqual([...SQUAD_ROLES]);
     expect(() => parseRoles("wizard")).toThrow(/unknown squad role/);
   });
+
+  it("briefs each role with a handoff and serves the role card", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
+    const squad = startSquad(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      roles: ["planner"],
+    });
+    const mail = bus.inbox(squad.members[0].sessionId);
+    expect(mail.some((m) => m.kind === "handoff" && m.body.includes("talks_role"))).toBe(true);
+    const card = bus.roleCard(squad.members[0].sessionId);
+    expect(card.ok).toBe(true);
+    if (card.ok) {
+      expect(card.role).toBe("planner");
+      expect(card.text).toMatch(/Does not own/);
+    }
+    const assigned = bus.handoff("lead-1", "planner", "slice-auth", "spec the token refresh");
+    expect(assigned.ok).toBe(true);
+    expect(bus.inbox(squad.members[0].sessionId).some((m) => m.body.includes("TASK slice-auth"))).toBe(
+      true,
+    );
+  });
 });
+

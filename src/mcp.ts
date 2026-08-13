@@ -57,5 +57,19 @@ server.tool(
   },
 );
 
+server.tool("talks_role", {}, async () => {
+  const r = callTalksTool(bus, sessionId(), "talks_role", {});
+  return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
+});
+
+server.tool(
+  "talks_handoff",
+  { to: z.string(), task: z.string(), body: z.string() },
+  async ({ to, task, body }) => {
+    const r = callTalksTool(bus, sessionId(), "talks_handoff", { to, task, body });
+    return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
+  },
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);

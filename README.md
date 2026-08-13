@@ -24,13 +24,20 @@ Idle peers hear mail within about a minute after they arm `/loop 60s`. This plug
 
 ## Squad (v2)
 
-A lead can start role coworkers on the same bus:
+Role cards live in `squad/` (constitution + one file per role). The plugin ships matching `agents/` so a role is a real Grok agent.
 
 ```bash
-GROK_SESSION_ID=lead GROK_TALKS_ASSUME_ALIVE=1 node dist/cli.js squad planner,frontend,backend,qa
+# this session is the lead
+grok --agent grok-talks:lead
+# /squad   or talks_squad_start
+
+# each role in another terminal
+grok --agent grok-talks:planner
 ```
 
-Roles: planner, explorer, frontend, backend, qa, validator, adversarial, security.
+The lead assigns work with `talks_handoff`. A role calls `talks_role` then `talks_inbox`.
+
+Roles: lead, planner, explorer, frontend, backend, qa, validator, adversarial, security.
 
 ## Pulse Lantern example
 

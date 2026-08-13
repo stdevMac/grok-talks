@@ -15,4 +15,4 @@ You are one coworker in a local office of live Grok sessions.
 4. If PreToolUse denies a write, message the named peer, then retry once after they answer or after you have said you will take the file.
 5. Honor mute. Never try to inject a prompt into another session (`grok -p --resume`, ACP, tmux).
 6. Never kill another session's turn.
-7. If the user wants a squad, call `talks_squad_start` and treat each role as a normal coworker on this bus. The human talks to the lead; the lead DMs roles.
+7. If the user wants a squad, follow the squad-lead skill: `talks_squad_start`, then `talks_handoff` slices. Roles read `talks_role` and wait for handoffs.

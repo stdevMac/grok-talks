@@ -54,13 +54,25 @@ export function runCli(
       const squad = startSquad(bus, { leadSessionId: sessionId, cwd, roles });
       return {
         status: 0,
-        text: squad.members.map((m) => `${m.role}\t${m.sessionId}\t${m.name}`).join("\n") + "\n",
+        text:
+          squad.members
+            .map((m) => `${m.role}\t${m.sessionId}\tgrok --agent grok-talks:${m.role}`)
+            .join("\n") + "\n",
       };
     } catch (err) {
       return { status: 1, text: (err instanceof Error ? err.message : "squad failed") + "\n" };
     }
   }
-  return { status: 1, text: "usage: talks board|send|inbox|mute|unmute|start|squad\n" };
+  if (cmd === "role") {
+    const r = bus.roleCard(sessionId);
+    return r.ok ? { status: 0, text: r.text + "\n" } : { status: 1, text: r.error + "\n" };
+  }
+  if (cmd === "handoff") {
+    const [to, task, ...body] = rest;
+    const r = bus.handoff(sessionId, to ?? "", task ?? "", body.join(" "));
+    return r.ok ? { status: 0, text: `handoff ${r.mail.id}\n` } : { status: 1, text: r.error + "\n" };
+  }
+  return { status: 1, text: "usage: talks board|send|inbox|mute|unmute|start|squad|role|handoff\n" };
 }
 
 const isMain = process.argv[1]?.endsWith("cli.ts") || process.argv[1]?.endsWith("cli.js");

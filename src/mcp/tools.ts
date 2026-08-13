@@ -55,8 +55,23 @@ export function callTalksTool(
       );
       const squad = startSquad(bus, { leadSessionId: sessionId, cwd, roles });
       return {
-        text: squad.members.map((m) => `${m.role}\t${m.sessionId}\t${m.name}`).join("\n"),
+        text: squad.members
+          .map((m) => `${m.role}\t${m.sessionId}\tgrok --agent grok-talks:${m.role}`)
+          .join("\n"),
       };
+    }
+    if (name === "talks_role") {
+      const r = bus.roleCard(sessionId);
+      return r.ok ? { text: r.text } : { text: r.error, isError: true };
+    }
+    if (name === "talks_handoff") {
+      const r = bus.handoff(
+        sessionId,
+        String(args.to ?? ""),
+        String(args.task ?? ""),
+        String(args.body ?? ""),
+      );
+      return r.ok ? { text: `handoff ${r.mail.id}` } : { text: r.error, isError: true };
     }
     return { text: `unknown tool ${name}`, isError: true };
   } catch (err) {

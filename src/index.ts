@@ -12,5 +12,6 @@ export {
   squadSessionId,
   isSquadRole,
 } from "./bus/squad.js";
+export { loadConstitution, loadRoleCard, formatRoleBriefing, cardFromSession } from "./bus/roleCards.js";
 export type { Squad, SquadMember, SquadRole } from "./bus/squad.js";
 export type { BusDeps, RosterEntry, Mail, BoardScope } from "./bus/types.js";

@@ -48,4 +48,24 @@ describe("mcp tools", () => {
     const board = callTalksTool(bus, "lead-1", "talks_board", {});
     expect(board.text).toMatch(/qa/);
   });
+
+  it("talks_role and talks_handoff drive the shipped squad cards", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
+    callTalksTool(bus, "lead-1", "talks_squad_start", { roles: ["planner"], cwd: "/repo" });
+    const plannerId = "squad-lead-1-planner";
+    const card = callTalksTool(bus, plannerId, "talks_role", {});
+    expect(card.isError).toBeFalsy();
+    expect(card.text).toMatch(/Planner/);
+    const sent = callTalksTool(bus, "lead-1", "talks_handoff", {
+      to: "planner",
+      task: "plan-login",
+      body: "slice the login job",
+    });
+    expect(sent.isError).toBeFalsy();
+    const inbox = callTalksTool(bus, plannerId, "talks_inbox", {});
+    expect(inbox.text).toMatch(/plan-login/);
+  });
 });
+
