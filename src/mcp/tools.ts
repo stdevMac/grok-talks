@@ -1,3 +1,4 @@
+import { parseRoles, startSquad } from "../bus/squad.js";
 import { TalksBus } from "../bus/talks.js";
 import type { BoardScope } from "../bus/types.js";
 
@@ -46,6 +47,16 @@ export function callTalksTool(
     if (name === "talks_status") {
       bus.setStatus(sessionId, String(args.working_on ?? ""));
       return { text: "ok" };
+    }
+    if (name === "talks_squad_start") {
+      const cwd = String(args.cwd ?? process.cwd());
+      const roles = parseRoles(
+        Array.isArray(args.roles) ? (args.roles as string[]) : (args.roles as string | undefined),
+      );
+      const squad = startSquad(bus, { leadSessionId: sessionId, cwd, roles });
+      return {
+        text: squad.members.map((m) => `${m.role}\t${m.sessionId}\t${m.name}`).join("\n"),
+      };
     }
     return { text: `unknown tool ${name}`, isError: true };
   } catch (err) {

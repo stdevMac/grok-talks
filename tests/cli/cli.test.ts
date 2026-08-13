@@ -15,5 +15,7 @@ describe("cli", () => {
     runCli(bus, "aaa", ["mute", "bbb"]);
     expect(runCli(bus, "aaa", ["inbox", "--drain"]).text).not.toMatch(/hello/);
     expect(runCli(bus, "aaa", ["send", "nope", "x"]).status).toBe(1);
+    expect(runCli(bus, "aaa", ["squad", "planner,qa"]).status).toBe(0);
+    expect(runCli(bus, "aaa", ["board"]).text).toMatch(/planner/);
   });
 });

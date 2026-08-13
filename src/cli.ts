@@ -1,5 +1,6 @@
 import { systemClock, systemPid } from "./bus/clock.js";
 import { defaultDataDir } from "./bus/paths.js";
+import { parseRoles, startSquad } from "./bus/squad.js";
 import { TalksBus } from "./bus/talks.js";
 
 export function runCli(
@@ -46,7 +47,20 @@ export function runCli(
     bus.sessionStart({ sessionId, cwd, pid, title });
     return { status: 0, text: `started ${sessionId}\n` };
   }
-  return { status: 1, text: "usage: talks board|send|inbox|mute|unmute|start\n" };
+  if (cmd === "squad") {
+    try {
+      const roles = parseRoles(rest[0]);
+      const cwd = rest[1] || process.cwd();
+      const squad = startSquad(bus, { leadSessionId: sessionId, cwd, roles });
+      return {
+        status: 0,
+        text: squad.members.map((m) => `${m.role}\t${m.sessionId}\t${m.name}`).join("\n") + "\n",
+      };
+    } catch (err) {
+      return { status: 1, text: (err instanceof Error ? err.message : "squad failed") + "\n" };
+    }
+  }
+  return { status: 1, text: "usage: talks board|send|inbox|mute|unmute|start|squad\n" };
 }
 
 const isMain = process.argv[1]?.endsWith("cli.ts") || process.argv[1]?.endsWith("cli.js");

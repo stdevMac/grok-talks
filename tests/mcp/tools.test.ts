@@ -34,4 +34,18 @@ describe("mcp tools", () => {
     const r = callTalksTool(bus, "", "talks_board", {});
     expect(r.isError).toBe(true);
   });
+
+  it("talks_squad_start puts roles on the board", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
+    const started = callTalksTool(bus, "lead-1", "talks_squad_start", {
+      roles: ["qa", "frontend"],
+      cwd: "/repo",
+    });
+    expect(started.isError).toBeFalsy();
+    expect(started.text).toMatch(/frontend/);
+    const board = callTalksTool(bus, "lead-1", "talks_board", {});
+    expect(board.text).toMatch(/qa/);
+  });
 });

@@ -48,5 +48,14 @@ server.tool("talks_status", { working_on: z.string() }, async ({ working_on }) =
   return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
 });
 
+server.tool(
+  "talks_squad_start",
+  { roles: z.union([z.string(), z.array(z.string())]).optional(), cwd: z.string().optional() },
+  async ({ roles, cwd }) => {
+    const r = callTalksTool(bus, sessionId(), "talks_squad_start", { roles, cwd });
+    return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
+  },
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
