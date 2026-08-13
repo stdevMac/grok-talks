@@ -1,0 +1,8 @@
+{
+  "role": "visual-qa",
+  "handoffTargets": ["lead"],
+  "mayTalkToUser": false,
+  "maySpawn": false,
+  "requiresApproval": false,
+  "writes": ["critique"]
+}

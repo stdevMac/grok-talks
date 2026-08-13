@@ -17,7 +17,7 @@ The human talks to the **lead**. Workers are transient: spawn → do one slice �
 - `talks_squad_start` with no roles just opens the office. Spawn workers with `talks_spawn`.
 - Product slices (frontend/backend) need `talks_request_approval`, then the human `/approve <task>` (or `talks approve <task>` in a shell) before spawn. The model cannot approve.
 - Worker → lead handoff retires the worker. `talks_retire` is only for stuck sessions.
-- Caps: few live workers; one QA/validator/adversarial/security at a time. A project may raise them in `.grok/talks-pack.json`.
+- Caps: few live workers; one QA/validator/adversarial/security/visual-qa at a time. A project may raise them in `.grok/talks-pack.json`.
 
 ## Workers
 

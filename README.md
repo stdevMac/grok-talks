@@ -129,6 +129,7 @@ You stay in **one** session: the lead. The lead does not write product code. Wor
 | validator | Rejects broken contrast, structure, names. | no |
 | adversarial | Tries to break the result. | no |
 | security | Keeps secrets off the bus; locks down markup. | no |
+| **visual-qa** | Hostile art director. Punch list only. Does not implement. | no |
 
 Cards live in `squad/roles/`. Matching Grok agents live in `agents/`.
 
@@ -255,6 +256,7 @@ Create `.grok/talks-pack.json` in the project to raise (or tighten) limits. Only
 | `/squad` | lead | Open the office (no standing workers) |
 | `/squad planner,qa` | lead | Standing escape hatch |
 | `/approve <task>` | **you**, in the lead TUI | Unlock a frontend/backend spawn |
+| `/visual-qa` | lead | Spawn the visual critic (no approval). Attach the printed launch line |
 
 The model also gets MCP tools: `talks_board`, `talks_say`, `talks_inbox`, `talks_mute`, `talks_status`, `talks_squad_start`, `talks_role`, `talks_handoff`, `talks_spawn`, `talks_retire`, `talks_request_approval`. There is **no** `talks_approve`.
 
@@ -340,7 +342,7 @@ npm run demo      # Pulse Lantern only
 | `src/cli.ts` | `talks` / `grok-talks` |
 | `squad/` | Constitution, role cards, contracts, caps |
 | `agents/` | Grok agents (`grok --agent grok-talks:lead`, …) |
-| `commands/` | `/board` `/talks` `/mute` `/squad` `/approve` |
+| `commands/` | `/board` `/talks` `/mute` `/squad` `/approve` `/visual-qa` |
 | `skills/` | Coworker manners for the model |
 | `examples/pulse-lantern/` | Dummy factory run |
 

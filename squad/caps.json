@@ -8,6 +8,7 @@
     "qa": 1,
     "validator": 1,
     "adversarial": 1,
-    "security": 1
+    "security": 1,
+    "visual-qa": 1
   }
 }

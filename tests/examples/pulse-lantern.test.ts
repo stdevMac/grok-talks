@@ -21,6 +21,7 @@ describe("pulse lantern dummy", () => {
     expect(result.html).toContain("data-role=\"frontend\"");
     expect(result.html).toContain("data-role=\"backend\"");
     expect(result.html).toContain("data-role=\"qa\"");
+    expect(result.html).toContain("data-role=\"visual-qa\"");
     expect(result.html).toContain("#7df9ff");
     expect(result.html).toContain("pulse 2.4s");
 

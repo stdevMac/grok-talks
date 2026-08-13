@@ -11,6 +11,7 @@ export const ALL_SQUAD_CARDS = ["lead", ...([
   "validator",
   "adversarial",
   "security",
+  "visual-qa",
 ] as const)] as const;
 
 export type SquadCardName = (typeof ALL_SQUAD_CARDS)[number];

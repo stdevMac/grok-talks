@@ -17,6 +17,7 @@ export const SQUAD_ROLES = [
   "validator",
   "adversarial",
   "security",
+  "visual-qa",
 ] as const;
 
 export type SquadRole = (typeof SQUAD_ROLES)[number];
@@ -30,6 +31,7 @@ export const ROLE_BRIEFS: Record<SquadRole, string> = {
   validator: "Reject outputs that break the contract (contrast, structure, names).",
   adversarial: "Try to break the sample; file collisions and ugly edge cases.",
   security: "Keep secrets out of the bus and the sample; lock down markup.",
+  "visual-qa": "Savage visual critique: hierarchy, type, motion, taste. Punch list only.",
 };
 
 export type WorkerState = "spawned" | "handoff_sent" | "retired";

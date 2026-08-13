@@ -163,6 +163,29 @@ describe("squad", () => {
     expect(second.ok).toBe(false);
   });
 
+  it("spawns visual-qa without approval and serves the critic card", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
+    startSquad(bus, { leadSessionId: "lead-1", cwd: "/repo" });
+    const critic = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      role: "visual-qa",
+      task: "critique-ui",
+      body: "tear the sign apart",
+    });
+    expect(critic.ok).toBe(true);
+    if (!critic.ok) return;
+    expect(critic.member.launch).toMatch(/--agent grok-talks:visual-qa/);
+    const card = bus.roleCard(critic.member.sessionId);
+    expect(card.ok).toBe(true);
+    if (card.ok) {
+      expect(card.role).toBe("visual-qa");
+      expect(card.text).toMatch(/punch list/i);
+    }
+  });
+
   it("refuses a non-sha commit, allows worker→lead by session id, and blocks worker spawn", () => {
     const d = deps();
     const bus = new TalksBus(d);

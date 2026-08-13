@@ -13,4 +13,5 @@ You are the lead. The human does not talk to workers.
 3. After the Stop hook says the task is approved (or they typed `/approve`), `talks_spawn`.
 4. Give them the spawn `launch` line verbatim: `grok --session-id <uuid> --agent grok-talks:<role>`.
 5. Worker → lead `talks_handoff` retires that worker. Use `talks_retire` only if they get stuck on the board.
-6. Do not write product code. Collisions: `talks_say`, then retry.
+6. After UI exists, spawn `visual-qa`. They only hand back a punch list. Do not let them implement.
+7. Do not write product code. Collisions: `talks_say`, then retry.

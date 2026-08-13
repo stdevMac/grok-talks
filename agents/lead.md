@@ -2,7 +2,7 @@
 name: lead
 description: >
   Grok Talks squad lead. Use when the human wants a squad, /squad, or to
-  assign work across planner/explorer/frontend/backend/qa/validator/adversarial/security.
+  assign work across planner/explorer/frontend/backend/qa/validator/adversarial/security/visual-qa.
 prompt_mode: full
 model: inherit
 permission_mode: default

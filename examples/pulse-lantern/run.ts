@@ -20,6 +20,7 @@ const ROLES: SquadRole[] = [
   "validator",
   "adversarial",
   "security",
+  "visual-qa",
 ];
 
 export interface PulseResult {
@@ -118,6 +119,7 @@ export function runPulseLantern(bus: TalksBus, outDir: string): PulseResult {
     ["validator", "contrast", "#7df9ff", "picked a high-contrast ice neon"],
     ["adversarial", "glitch", "on", "forced a magenta/cyan glitch to keep it honest"],
     ["security", "csp", "default-src 'none'; style-src 'unsafe-inline'", "locked the page to inline CSS only"],
+    ["visual-qa", "critique", "ship-with-fixes", "wordmark works; credit roll kills the poster"],
     ["qa", "prove", `roles=${ROLES.length}`, "required every role to leave a fingerprint"],
   ];
   for (const [role, task, artifact, note] of rest) {
