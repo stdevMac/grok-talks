@@ -9,6 +9,8 @@ import { isMuted, readMutes, setMute } from "./mutes.js";
 import { displayName } from "./names.js";
 import { normalizePath, projectRoot } from "./normalize.js";
 import { allowChat } from "./rateLimit.js";
+import { handoffDenied } from "./contracts.js";
+import { markHandoffSent } from "./squad.js";
 import { cardFromSession, formatRoleBriefing } from "./roleCards.js";
 import { listRoster, readRoster, removeRoster, writeRoster } from "./roster.js";
 import { markTalked } from "./talked.js";
@@ -204,6 +206,8 @@ export class TalksBus {
     const resolved = this.resolvePeer(from, to);
     if (!resolved.ok) return resolved;
     const us = readRoster(this.deps, from);
+    const denied = handoffDenied(us, resolved.peer);
+    if (denied) return { ok: false, error: denied };
     const mail = appendMail(this.deps, resolved.peer.session_id, {
       from,
       from_name: us?.name ?? from,
@@ -213,6 +217,7 @@ export class TalksBus {
       paths: [],
     });
     markTalked(this.deps, from, resolved.peer.session_id);
+    markHandoffSent(this.deps.dataDir, from);
     return { ok: true, mail };
   }
 

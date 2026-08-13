@@ -35,7 +35,18 @@ grok --agent grok-talks:lead
 grok --agent grok-talks:planner
 ```
 
-The lead assigns work with `talks_handoff`. A role calls `talks_role` then `talks_inbox`.
+Default: the lead stays up. Workers are **spawned for one slice and retired** after they hand a result back. Frontend/backend need a human `talks_approve` first.
+
+```bash
+# lead only
+GROK_SESSION_ID=lead node dist/cli.js squad
+
+# later
+GROK_SESSION_ID=lead node dist/cli.js request-approval slice-auth
+GROK_SESSION_ID=lead node dist/cli.js approve slice-auth
+GROK_SESSION_ID=lead node dist/cli.js spawn frontend slice-auth "own the glass"
+GROK_SESSION_ID=lead node dist/cli.js retire <worker-session-id>
+```
 
 Roles: lead, planner, explorer, frontend, backend, qa, validator, adversarial, security.
 

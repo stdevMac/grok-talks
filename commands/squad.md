@@ -1,12 +1,11 @@
 ---
-description: Start a grok-talks squad and show how to attach each role
-argument-hint: "[roles] [cwd]"
+description: Open the grok-talks office as lead; optionally stand up named roles
+argument-hint: "[roles|all] [cwd]"
 ---
 
-You are the lead. Call `talks_squad_start` with the roles the user named (comma-separated). Default is planner, explorer, frontend, backend, qa, validator, adversarial, security.
+You are the lead.
 
-Then `talks_board`. Tell the user:
+- No args: `talks_squad_start` with no roles (office only). Then spawn workers as slices appear.
+- Named roles or `all`: start those as standing coworkers (escape hatch).
 
-- They keep talking to this lead session.
-- Each role attaches in another terminal with `grok --agent grok-talks:<role>`.
-- You will `talks_handoff` work; roles call `talks_role` then `talks_inbox`.
+Tell the human they stay in this session. Workers attach with `grok --agent grok-talks:<role>`. Product slices need approval before `talks_spawn`. Retire workers after they hand back.

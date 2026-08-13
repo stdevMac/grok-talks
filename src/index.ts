@@ -8,9 +8,16 @@ export {
   SQUAD_ROLES,
   ROLE_BRIEFS,
   startSquad,
+  spawnWorker,
+  retireWorker,
   parseRoles,
   squadSessionId,
   isSquadRole,
+  requestApproval,
+  approveTask,
+  isApproved,
+  loadSquadState,
+  activeWorkers,
 } from "./bus/squad.js";
 export { loadConstitution, loadRoleCard, formatRoleBriefing, cardFromSession } from "./bus/roleCards.js";
 export type { Squad, SquadMember, SquadRole } from "./bus/squad.js";

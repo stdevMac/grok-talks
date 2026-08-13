@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { SQUAD_ROLES, parseRoles, startSquad } from "../../src/bus/squad.js";
+import {
+  SQUAD_ROLES,
+  activeWorkers,
+  approveTask,
+  loadSquadState,
+  parseRoles,
+  retireWorker,
+  spawnWorker,
+  startSquad,
+} from "../../src/bus/squad.js";
 import { TalksBus } from "../../src/bus/talks.js";
 import { deps } from "../helpers.js";
 
@@ -53,8 +62,9 @@ describe("squad", () => {
     expect(second.decision).toBe("allow");
   });
 
-  it("defaults to the full role list and rejects unknown roles", () => {
-    expect(parseRoles(undefined)).toEqual([...SQUAD_ROLES]);
+  it("parses empty as no standing workers, all as the full set", () => {
+    expect(parseRoles(undefined)).toEqual([]);
+    expect(parseRoles("all")).toEqual([...SQUAD_ROLES]);
     expect(() => parseRoles("wizard")).toThrow(/unknown squad role/);
   });
 
@@ -80,6 +90,71 @@ describe("squad", () => {
     expect(bus.inbox(squad.members[0].sessionId).some((m) => m.body.includes("TASK slice-auth"))).toBe(
       true,
     );
+  });
+
+  it("spawns transients under caps, blocks unapproved product roles, and retires them", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
+    startSquad(bus, { leadSessionId: "lead-1", cwd: "/repo" });
+    expect(loadSquadState(d.dataDir, "lead-1")?.workers).toEqual([]);
+
+    const blocked = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      role: "frontend",
+      task: "glass",
+      body: "own the sign",
+    });
+    expect(blocked.ok).toBe(false);
+
+    approveTask(d.dataDir, "lead-1", "glass");
+    const fe = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      role: "frontend",
+      task: "glass",
+      body: "own the sign",
+    });
+    expect(fe.ok).toBe(true);
+    if (!fe.ok) return;
+
+    bus.sessionStart({ sessionId: "be", cwd: "/repo", pid: 200, title: "backend" });
+    const peer = bus.handoff(fe.member.sessionId, "backend", "nope", "take this");
+    expect(peer.ok).toBe(false);
+    if (!peer.ok) expect(peer.error).toMatch(/only handoff/);
+
+    const back = bus.handoff(fe.member.sessionId, "lead", "glass", "sign.html done");
+    expect(back.ok).toBe(true);
+    expect(loadSquadState(d.dataDir, "lead-1")?.workers[0].state).toBe("handoff_sent");
+
+    expect(retireWorker(bus, "lead-1", fe.member.sessionId).ok).toBe(true);
+    expect(activeWorkers(loadSquadState(d.dataDir, "lead-1")!).length).toBe(0);
+    expect(bus.board("lead-1", "project").some((r) => r.session_id === fe.member.sessionId)).toBe(
+      false,
+    );
+  });
+
+  it("refuses a second planner while one is live", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
+    const first = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      role: "planner",
+      task: "plan",
+      body: "slice it",
+    });
+    expect(first.ok).toBe(true);
+    const second = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      role: "planner",
+      task: "plan-2",
+      body: "again",
+    });
+    expect(second.ok).toBe(false);
   });
 });
 

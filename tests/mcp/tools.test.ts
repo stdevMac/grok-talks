@@ -53,8 +53,11 @@ describe("mcp tools", () => {
     const d = deps();
     const bus = new TalksBus(d);
     bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
-    callTalksTool(bus, "lead-1", "talks_squad_start", { roles: ["planner"], cwd: "/repo" });
-    const plannerId = "squad-lead-1-planner";
+    const started = callTalksTool(bus, "lead-1", "talks_squad_start", {
+      roles: ["planner"],
+      cwd: "/repo",
+    });
+    const plannerId = started.text.split("\t")[1];
     const card = callTalksTool(bus, plannerId, "talks_role", {});
     expect(card.isError).toBeFalsy();
     expect(card.text).toMatch(/Planner/);
@@ -66,6 +69,29 @@ describe("mcp tools", () => {
     expect(sent.isError).toBeFalsy();
     const inbox = callTalksTool(bus, plannerId, "talks_inbox", {});
     expect(inbox.text).toMatch(/plan-login/);
+  });
+
+  it("talks_spawn requires approval for frontend then retire drops them", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "lead-1", cwd: "/repo", pid: 100, title: "lead" });
+    const denied = callTalksTool(bus, "lead-1", "talks_spawn", {
+      role: "frontend",
+      task: "ui-1",
+      body: "the glass",
+      cwd: "/repo",
+    });
+    expect(denied.isError).toBe(true);
+    callTalksTool(bus, "lead-1", "talks_approve", { task: "ui-1" });
+    const spawned = callTalksTool(bus, "lead-1", "talks_spawn", {
+      role: "frontend",
+      task: "ui-1",
+      body: "the glass",
+      cwd: "/repo",
+    });
+    expect(spawned.isError).toBeFalsy();
+    const id = spawned.text.split("\t")[1];
+    expect(callTalksTool(bus, "lead-1", "talks_retire", { session_id: id }).text).toBe("retired");
   });
 });
 

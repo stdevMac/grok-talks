@@ -1,0 +1,8 @@
+{
+  "role": "qa",
+  "handoffTargets": ["lead"],
+  "mayTalkToUser": false,
+  "maySpawn": false,
+  "requiresApproval": false,
+  "writes": ["tests"]
+}

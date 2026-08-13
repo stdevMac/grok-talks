@@ -1,0 +1,8 @@
+{
+  "role": "lead",
+  "handoffTargets": ["planner", "explorer", "frontend", "backend", "qa", "validator", "adversarial", "security"],
+  "mayTalkToUser": true,
+  "maySpawn": true,
+  "requiresApproval": false,
+  "writes": []
+}

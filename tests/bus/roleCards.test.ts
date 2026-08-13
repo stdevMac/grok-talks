@@ -19,6 +19,7 @@ describe("role cards", () => {
       const brief = formatRoleBriefing(role);
       expect(brief.startsWith(constitution)).toBe(true);
       expect(brief).toContain(card.trim().slice(0, 20));
+      if (role !== "lead") expect(brief).toMatch(/transient/);
     }
   });
 

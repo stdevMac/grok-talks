@@ -1,4 +1,12 @@
-import { parseRoles, startSquad } from "../bus/squad.js";
+import { isSquadRole } from "../bus/squad.js";
+import {
+  approveTask,
+  parseRoles,
+  requestApproval,
+  retireWorker,
+  spawnWorker,
+  startSquad,
+} from "../bus/squad.js";
 import { TalksBus } from "../bus/talks.js";
 import type { BoardScope } from "../bus/types.js";
 
@@ -72,6 +80,33 @@ export function callTalksTool(
         String(args.body ?? ""),
       );
       return r.ok ? { text: `handoff ${r.mail.id}` } : { text: r.error, isError: true };
+    }
+    if (name === "talks_spawn") {
+      const role = String(args.role ?? "");
+      if (!isSquadRole(role)) return { text: `unknown role ${role}`, isError: true };
+      const r = spawnWorker(bus, {
+        leadSessionId: sessionId,
+        cwd: String(args.cwd ?? process.cwd()),
+        role,
+        task: String(args.task ?? role),
+        body: String(args.body ?? ""),
+      });
+      if (!r.ok) return { text: r.error, isError: true };
+      return {
+        text: `${r.member.role}\t${r.member.sessionId}\tgrok --agent grok-talks:${r.member.role}`,
+      };
+    }
+    if (name === "talks_retire") {
+      const r = retireWorker(bus, sessionId, String(args.session_id ?? ""));
+      return r.ok ? { text: "retired" } : { text: r.error, isError: true };
+    }
+    if (name === "talks_request_approval") {
+      requestApproval(bus.deps.dataDir, sessionId, String(args.task ?? ""), String(args.body ?? ""));
+      return { text: "requested" };
+    }
+    if (name === "talks_approve") {
+      approveTask(bus.deps.dataDir, sessionId, String(args.task ?? ""));
+      return { text: "approved" };
     }
     return { text: `unknown tool ${name}`, isError: true };
   } catch (err) {

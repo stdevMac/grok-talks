@@ -1,6 +1,14 @@
 import { systemClock, systemPid } from "./bus/clock.js";
 import { defaultDataDir } from "./bus/paths.js";
-import { parseRoles, startSquad } from "./bus/squad.js";
+import { isSquadRole } from "./bus/squad.js";
+import {
+  approveTask,
+  parseRoles,
+  requestApproval,
+  retireWorker,
+  spawnWorker,
+  startSquad,
+} from "./bus/squad.js";
 import { TalksBus } from "./bus/talks.js";
 
 export function runCli(
@@ -72,7 +80,38 @@ export function runCli(
     const r = bus.handoff(sessionId, to ?? "", task ?? "", body.join(" "));
     return r.ok ? { status: 0, text: `handoff ${r.mail.id}\n` } : { status: 1, text: r.error + "\n" };
   }
-  return { status: 1, text: "usage: talks board|send|inbox|mute|unmute|start|squad|role|handoff\n" };
+  if (cmd === "spawn") {
+    const role = rest[0] ?? "";
+    if (!isSquadRole(role)) return { status: 1, text: `unknown role ${role}\n` };
+    const r = spawnWorker(bus, {
+      leadSessionId: sessionId,
+      cwd: rest[3] || process.cwd(),
+      role,
+      task: rest[1] ?? role,
+      body: rest.slice(2).join(" "),
+    });
+    if (!r.ok) return { status: 1, text: r.error + "\n" };
+    return {
+      status: 0,
+      text: `${r.member.role}\t${r.member.sessionId}\tgrok --agent grok-talks:${r.member.role}\n`,
+    };
+  }
+  if (cmd === "retire") {
+    const r = retireWorker(bus, sessionId, rest[0] ?? "");
+    return r.ok ? { status: 0, text: "retired\n" } : { status: 1, text: r.error + "\n" };
+  }
+  if (cmd === "request-approval") {
+    requestApproval(bus.deps.dataDir, sessionId, rest[0] ?? "", rest.slice(1).join(" "));
+    return { status: 0, text: "requested\n" };
+  }
+  if (cmd === "approve") {
+    approveTask(bus.deps.dataDir, sessionId, rest[0] ?? "");
+    return { status: 0, text: "approved\n" };
+  }
+  return {
+    status: 1,
+    text: "usage: talks board|send|inbox|mute|unmute|start|squad|role|handoff|spawn|retire|request-approval|approve\n",
+  };
 }
 
 const isMain = process.argv[1]?.endsWith("cli.ts") || process.argv[1]?.endsWith("cli.js");

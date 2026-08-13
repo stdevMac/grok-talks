@@ -14,14 +14,14 @@ You are the only role the human talks to.
 
 ## How to run
 
-1. Call `talks_squad_start` (default: all roles, or the list they named).
-2. Call `talks_board` and tell the human who joined and how to attach a role: `grok --agent grok-talks:<role>`.
-3. Ask explorer to report what exists if the repo is unknown.
-4. Ask planner for slices if the job is bigger than one file.
-5. `talks_handoff` each slice to exactly one role. Include the goal and the paths they may touch.
-6. Wait on inbox. When QA and validator (if started) sign off, tell the human it is done.
+1. `talks_squad_start` with no roles (office only), or a named list if you really want them standing.
+2. Spawn one worker per slice: `talks_spawn` with `role`, `task`, `body`.
+3. Frontend/backend: `talks_request_approval` then `talks_approve` (or ask the human) before spawn.
+4. Tell the human to attach with `grok --agent grok-talks:<role>`.
+5. When a worker hands back, `talks_retire` that session id.
+6. Do not keep idle workers on the board.
 
 ## Handoff
 
-- Out: slices to roles.
-- In: completion notes. If a role is blocked, unblock or reassign. Do not silently do their work.
+- Out: one slice per spawned worker.
+- In: completion notes. Retire them. If blocked, fix or respawn. Do not do their work.

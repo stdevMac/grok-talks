@@ -31,8 +31,14 @@ export function loadRoleCard(role: SquadCardName): string {
   return readSquadFile(path.join("roles", `${role}.md`));
 }
 
+export function loadWorkerProtocol(): string {
+  return readSquadFile("WORKER.md");
+}
+
 export function formatRoleBriefing(role: SquadCardName): string {
-  return `${loadConstitution()}\n\n${loadRoleCard(role)}`;
+  const parts = [loadConstitution(), loadRoleCard(role)];
+  if (role !== "lead") parts.push(loadWorkerProtocol());
+  return parts.join("\n\n");
 }
 
 export function cardFromSession(name: string, sessionId: string): SquadCardName | undefined {
