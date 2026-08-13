@@ -31,7 +31,8 @@ You need **Node 20+** and the **Grok CLI** (`grok` on your `PATH`).
 git clone https://github.com/stdevMac/grok-talks.git
 cd grok-talks
 npm install
-npm test          # optional, 80 tests
+npx playwright install chromium   # visual-qa needs real pixels
+npm test          # optional
 npm run build
 grok plugin install . --trust
 ```
@@ -129,7 +130,7 @@ You stay in **one** session: the lead. The lead does not write product code. Wor
 | validator | Rejects broken contrast, structure, names. | no |
 | adversarial | Tries to break the result. | no |
 | security | Keeps secrets off the bus; locks down markup. | no |
-| **visual-qa** | Hostile art director. Punch list only. Does not implement. | no |
+| **visual-qa** | Hostile art director. Shoots desktop+mobile, then punch list. Does not implement. | no |
 
 Cards live in `squad/roles/`. Matching Grok agents live in `agents/`.
 
@@ -283,6 +284,7 @@ talks approve <task>
 talks spawn <role> <task> [body...] [--cwd <dir>]
 talks handoff <to> <task> <body...> [--commit <sha>]
 talks retire <worker-session-id>
+talks shot <url-or-html> [--out .grok/visual-qa]
 ```
 
 `--commit` must be a 7–40 character hex sha.

@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { systemClock, systemPid } from "./bus/clock.js";
 import { defaultDataDir } from "./bus/paths.js";
 import {
@@ -133,9 +136,15 @@ export function runCli(
     approveTask(bus.deps.dataDir, sessionId, task);
     return { status: 0, text: "approved\n" };
   }
+  if (cmd === "shot") {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const script = path.resolve(here, "..", "scripts", "visual-shot.mjs");
+    const r = spawnSync(process.execPath, [script, ...rest], { encoding: "utf8" });
+    return { status: r.status ?? 1, text: (r.stdout || "") + (r.stderr || "") };
+  }
   return {
     status: 1,
-    text: "usage: talks board|send|inbox|mute|unmute|start|squad|role|handoff|spawn|retire|request-approval|approve\n",
+    text: "usage: talks board|send|inbox|mute|unmute|start|squad|role|handoff|spawn|retire|request-approval|approve|shot\n",
   };
 }
 
