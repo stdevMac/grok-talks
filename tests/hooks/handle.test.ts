@@ -61,6 +61,49 @@ describe("hooks", () => {
     expect(bad).toBeUndefined();
   });
 
+  it("does not let a denied working peer block the original writer's next write", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    handleHook(bus, base({ hookEventName: "session_start" }), { pid: 100 });
+    handleHook(bus, base({ hookEventName: "session_start", sessionId: "bbb" }), { pid: 200 });
+    handleHook(bus, base({ hookEventName: "user_prompt_submit", prompt: "A owns auth" }), { pid: 100 });
+    handleHook(
+      bus,
+      base({ hookEventName: "user_prompt_submit", sessionId: "bbb", prompt: "B also wants auth" }),
+      { pid: 200 },
+    );
+    handleHook(
+      bus,
+      base({
+        hookEventName: "post_tool_use",
+        toolName: "search_replace",
+        toolInput: { file_path: "/repo/src/auth.ts" },
+      }),
+      { pid: 100 },
+    );
+    const deny = handleHook(
+      bus,
+      base({
+        hookEventName: "pre_tool_use",
+        sessionId: "bbb",
+        toolName: "search_replace",
+        toolInput: { file_path: "/repo/src/auth.ts" },
+      }),
+      { pid: 200 },
+    );
+    expect(deny).toMatchObject({ decision: "deny" });
+    const retry = handleHook(
+      bus,
+      base({
+        hookEventName: "pre_tool_use",
+        toolName: "search_replace",
+        toolInput: { file_path: "/repo/src/auth.ts" },
+      }),
+      { pid: 100 },
+    );
+    expect(retry).toBeUndefined();
+  });
+
   it("stop end_turn drains inbox and ignores other reasons", () => {
     const d = deps();
     const bus = new TalksBus(d);

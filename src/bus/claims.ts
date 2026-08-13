@@ -37,6 +37,13 @@ export function liveClaims(deps: BusDeps, sessionId: SessionId): ClaimPath[] {
   });
 }
 
+export function dropClaim(deps: BusDeps, sessionId: SessionId, absPath: string): void {
+  const current = readClaims(deps, sessionId);
+  if (!current) return;
+  const paths = current.paths.filter((p) => p.path !== absPath);
+  writeJsonAtomic(busPaths(deps.dataDir, sessionId).claims, { ...current, paths });
+}
+
 export function removeClaims(deps: BusDeps, sessionId: SessionId): void {
   removeFile(busPaths(deps.dataDir, sessionId).claims);
 }

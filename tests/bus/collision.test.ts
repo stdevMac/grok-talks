@@ -73,4 +73,19 @@ describe("collision policy", () => {
       "allow",
     );
   });
+
+  it("lets the original working claimer keep writing after a peer was denied", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    bus.sessionStart({ sessionId: "aaa", cwd: "/repo", pid: 100, title: "A" });
+    bus.sessionStart({ sessionId: "bbb", cwd: "/repo", pid: 200, title: "B" });
+    bus.promptSubmit("aaa", "own auth.ts");
+    bus.promptSubmit("bbb", "also want auth.ts");
+    bus.touchWrite("aaa", "src/auth.ts", "/repo");
+    expect(bus.decideWrite({ sessionId: "bbb", relPath: "src/auth.ts", cwd: "/repo" }).decision).toBe(
+      "deny",
+    );
+    const retry = bus.decideWrite({ sessionId: "aaa", relPath: "src/auth.ts", cwd: "/repo" });
+    expect(retry.decision).toBe("allow");
+  });
 });

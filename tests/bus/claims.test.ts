@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { liveClaims, removeClaims, touchClaim } from "../../src/bus/claims.js";
+import { dropClaim, liveClaims, removeClaims, touchClaim } from "../../src/bus/claims.js";
 import { CLAIM_TTL_MS } from "../../src/bus/types.js";
 import { deps } from "../helpers.js";
 
@@ -36,5 +36,13 @@ describe("claims", () => {
     touchClaim(d, "aaa", "/repo", "/repo/a.ts");
     removeClaims(d, "aaa");
     expect(liveClaims(d, "aaa")).toEqual([]);
+  });
+
+  it("dropClaim removes one path and keeps the others", () => {
+    const d = deps();
+    touchClaim(d, "aaa", "/repo", "/repo/a.ts");
+    touchClaim(d, "aaa", "/repo", "/repo/b.ts");
+    dropClaim(d, "aaa", "/repo/a.ts");
+    expect(liveClaims(d, "aaa").map((c) => c.path)).toEqual(["/repo/b.ts"]);
   });
 });
