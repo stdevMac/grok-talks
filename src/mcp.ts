@@ -48,5 +48,56 @@ server.tool("talks_status", { working_on: z.string() }, async ({ working_on }) =
   return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
 });
 
+server.tool(
+  "talks_squad_start",
+  { roles: z.union([z.string(), z.array(z.string())]).optional(), cwd: z.string().optional() },
+  async ({ roles, cwd }) => {
+    const r = callTalksTool(bus, sessionId(), "talks_squad_start", { roles, cwd });
+    return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
+  },
+);
+
+server.tool("talks_role", {}, async () => {
+  const r = callTalksTool(bus, sessionId(), "talks_role", {});
+  return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
+});
+
+server.tool(
+  "talks_handoff",
+  { to: z.string(), task: z.string(), body: z.string(), commit: z.string().optional() },
+  async ({ to, task, body, commit }) => {
+    const r = callTalksTool(bus, sessionId(), "talks_handoff", { to, task, body, commit });
+    return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
+  },
+);
+
+server.tool(
+  "talks_spawn",
+  {
+    role: z.string(),
+    task: z.string(),
+    body: z.string().optional(),
+    cwd: z.string().optional(),
+  },
+  async ({ role, task, body, cwd }) => {
+    const r = callTalksTool(bus, sessionId(), "talks_spawn", { role, task, body, cwd });
+    return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
+  },
+);
+
+server.tool("talks_retire", { session_id: z.string() }, async ({ session_id }) => {
+  const r = callTalksTool(bus, sessionId(), "talks_retire", { session_id });
+  return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
+});
+
+server.tool(
+  "talks_request_approval",
+  { task: z.string(), body: z.string().optional() },
+  async ({ task, body }) => {
+    const r = callTalksTool(bus, sessionId(), "talks_request_approval", { task, body });
+    return { content: [{ type: "text" as const, text: r.text }], isError: r.isError };
+  },
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);

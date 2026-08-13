@@ -58,4 +58,14 @@ describe("TalksBus", () => {
     const again = bus.shouldArmLoop("aaa", []);
     expect(again.arm).toBe(false);
   });
+
+  it("preserves name and working_on when the same session attaches again", () => {
+    const bus = new TalksBus(deps());
+    bus.sessionStart({ sessionId: "aaa", cwd: "/repo", pid: 100, title: "A" });
+    bus.setStatus("aaa", "editing auth");
+    bus.sessionStart({ sessionId: "aaa", cwd: "/repo", pid: 100 });
+    const row = bus.board("aaa", "project")[0];
+    expect(row.name).toBe("A");
+    expect(row.working_on).toBe("editing auth");
+  });
 });

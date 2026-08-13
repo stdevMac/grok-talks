@@ -1,6 +1,6 @@
 export type SessionId = string;
 export type IsoTime = string;
-export type MailKind = "chat" | "collision";
+export type MailKind = "chat" | "collision" | "handoff";
 export type SessionState = "working" | "idle";
 export type BoardScope = "project" | "all";
 
@@ -45,6 +45,7 @@ export interface Mail {
   project: string;
   body: string;
   paths: string[];
+  commit?: string;
 }
 
 export interface MuteFile {

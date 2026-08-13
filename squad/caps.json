@@ -1,0 +1,13 @@
+{
+  "maxTransient": 4,
+  "perRole": {
+    "planner": 1,
+    "explorer": 1,
+    "frontend": 2,
+    "backend": 2,
+    "qa": 1,
+    "validator": 1,
+    "adversarial": 1,
+    "security": 1
+  }
+}

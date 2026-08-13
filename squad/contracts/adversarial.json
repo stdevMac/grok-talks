@@ -1,0 +1,8 @@
+{
+  "role": "adversarial",
+  "handoffTargets": ["lead"],
+  "mayTalkToUser": false,
+  "maySpawn": false,
+  "requiresApproval": false,
+  "writes": []
+}

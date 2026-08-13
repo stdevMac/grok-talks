@@ -1,0 +1,8 @@
+{
+  "role": "backend",
+  "handoffTargets": ["lead"],
+  "mayTalkToUser": false,
+  "maySpawn": false,
+  "requiresApproval": true,
+  "writes": ["engine"]
+}

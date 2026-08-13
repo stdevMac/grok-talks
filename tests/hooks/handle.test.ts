@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isApproved, requestApproval, spawnWorker, startSquad } from "../../src/bus/squad.js";
 import { TalksBus } from "../../src/bus/talks.js";
 import { handleHook } from "../../src/hooks/handle.js";
 import { deps } from "../helpers.js";
@@ -138,5 +139,58 @@ describe("hooks", () => {
       { pid: 100 },
     );
     expect(bus.claims("aaa").some((c) => c.path.endsWith("src/a.ts"))).toBe(true);
+  });
+
+  it("records /approve without clobbering working_on and nags pending approvals on stop", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    handleHook(bus, base({ hookEventName: "session_start", sessionId: "lead-1" }), { pid: 100 });
+    startSquad(bus, { leadSessionId: "lead-1", cwd: "/repo" });
+    bus.promptSubmit("lead-1", "Ship the sign");
+    requestApproval(d.dataDir, "lead-1", "glass", "own the wordmark");
+    const nag = handleHook(
+      bus,
+      base({ hookEventName: "stop", sessionId: "lead-1", reason: "end_turn", sessionCrons: [] }),
+      { pid: 100 },
+    );
+    expect(JSON.stringify(nag)).toMatch(/Pending human approvals: glass/);
+    handleHook(
+      bus,
+      base({ hookEventName: "user_prompt_submit", sessionId: "lead-1", prompt: "/approve glass" }),
+      { pid: 100 },
+    );
+    expect(isApproved(d.dataDir, "lead-1", "glass")).toBe(true);
+    expect(bus.board("lead-1", "project")[0].working_on).toBe("Ship the sign");
+    const after = handleHook(
+      bus,
+      base({ hookEventName: "stop", sessionId: "lead-1", reason: "end_turn", sessionCrons: [] }),
+      { pid: 100 },
+    );
+    expect(JSON.stringify(after) ?? "").not.toMatch(/Pending human approvals/);
+  });
+
+  it("keeps a spawned worker's role name and status when the TUI attaches", () => {
+    const d = deps();
+    const bus = new TalksBus(d);
+    handleHook(bus, base({ hookEventName: "session_start", sessionId: "lead-1" }), { pid: 100 });
+    startSquad(bus, { leadSessionId: "lead-1", cwd: "/repo" });
+    const spawned = spawnWorker(bus, {
+      leadSessionId: "lead-1",
+      cwd: "/repo",
+      role: "planner",
+      task: "plan",
+      body: "slice it",
+      pid: 100,
+    });
+    expect(spawned.ok).toBe(true);
+    if (!spawned.ok) return;
+    handleHook(
+      bus,
+      base({ hookEventName: "session_start", sessionId: spawned.member.sessionId }),
+      { pid: 100 },
+    );
+    const row = bus.board("lead-1", "project").find((r) => r.session_id === spawned.member.sessionId);
+    expect(row?.name).toBe("planner");
+    expect(row?.working_on).toMatch(/ordered slices/);
   });
 });

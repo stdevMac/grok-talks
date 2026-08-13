@@ -18,6 +18,7 @@ export function appendMail(
     project: mail.project,
     body: mail.body,
     paths: mail.paths,
+    commit: mail.commit,
   };
   appendJsonl(busPaths(deps.dataDir, to).inbox, full);
   return full;

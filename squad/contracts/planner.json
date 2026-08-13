@@ -1,0 +1,8 @@
+{
+  "role": "planner",
+  "handoffTargets": ["lead"],
+  "mayTalkToUser": false,
+  "maySpawn": false,
+  "requiresApproval": false,
+  "writes": []
+}
